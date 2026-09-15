@@ -24,5 +24,6 @@ const MukorobDB = (() => {
   async function getAll(store) { const s=await tx(store,'readonly'); return new Promise((resolve,reject)=>{const r=s.getAll();r.onsuccess=()=>resolve(r.result||[]);r.onerror=()=>reject(r.error);}); }
   async function put(store,value){const s=await tx(store,'readwrite');return new Promise((resolve,reject)=>{const r=s.put(value);r.onsuccess=()=>resolve(true);r.onerror=()=>reject(r.error);});}
   async function del(store,key){const s=await tx(store,'readwrite');return new Promise((resolve,reject)=>{const r=s.delete(key);r.onsuccess=()=>resolve(true);r.onerror=()=>reject(r.error);});}
-  return {get,getAll,put,del};
+  async function stores(){const db=await open(); return Array.from(db.objectStoreNames);}
+  return {get,getAll,put,del,stores};
 })();
