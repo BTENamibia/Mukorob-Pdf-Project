@@ -1,17 +1,19 @@
-# Mukorob PDF v0.7 — Bradz Internal Edition
+# Mukorob PDF v0.7.1 — Bradz Internal Edition
 
 Mukorob PDF is a local-first PDF Reader & Editor for Bradz Trading Enterprises CC (BTE Namibia), designed for controlled internal use.
 
 ## v0.7.1 improvements
 
-- Added a backward-compatible local IndexedDB schema upgrade; existing v0.5/v0.6/v0.7 stores are retained.
+- Added a backward-compatible local IndexedDB migration layer; existing stores are retained.
 - Added **Super Admin-only encrypted Backup & Migration** for moving Mukorob local data between browsers/devices.
 - Backups use PBKDF2-SHA256 key derivation and AES-256-GCM encryption.
 - The active browser session token is deliberately excluded from backups.
-- Migration includes supported users, settings, recent data, annotations, drafts, audit records and local document/share records.
+- Migration covers the stores present in the source local database, including users, settings, recent data, annotations, drafts and audit/application records that are compatible with the destination schema.
+- Added a **first-run restore path** so an empty Chrome installation can restore an existing Mukorob backup without creating a replacement Super Admin first.
 - Restore requires the backup password and explicit confirmation before merging records.
+- Added automated structural and browser smoke-test coverage plus GitHub Actions QA.
 
-## v0.7 improvements
+## v0.7 browser features
 
 - Modular ES-module entry point with separate feature modules for print, annotations, page organisation, autosave and browser-test hooks.
 - **Native in-app printing:** no `window.open()` and no hidden PDF iframe. Mukorob builds a print surface in the current application context and invokes the browser's native print dialog.
@@ -40,8 +42,9 @@ For the current internal pilot, browser storage is local to each browser. If exi
 3. Open **Backup & Migration** and create an encrypted backup using a strong backup password (minimum 12 characters).
 4. Keep the `.mkb.json` backup file somewhere secure and separate from the browser.
 5. Open Mukorob PDF in Chrome.
-6. Sign in as Super Admin if Chrome already has a Mukorob account, then open **Backup & Migration → Restore backup**. If Chrome is empty, use the bootstrap account only as the temporary administrative gate and then restore the Avast backup.
-7. Reload Mukorob PDF after restore and verify all expected users and permissions before retiring the Avast copy.
+6. If Chrome is empty, use **Already have a Mukorob installation? → Restore existing Mukorob backup** on the Super Admin setup screen. Do **not** create a replacement Super Admin first.
+7. If Chrome already contains Mukorob users, sign in as Super Admin and use **Backup & Migration → Restore backup**.
+8. Reload Mukorob PDF and verify the original Super Admin and staff accounts, permissions and expected local data before retiring the Avast copy.
 
 The migration backup is a **browser-transfer mechanism**, not a server backup. It does not make the current local-first authentication architecture enterprise-grade.
 
@@ -61,15 +64,7 @@ This makes them independent of screen size and zoom. The on-screen controls supp
 
 ## Autosave
 
-Autosave stores a local draft under the current signed-in user and document hash. Drafts include:
-
-- PDF source bytes
-- page rotations
-- annotation geometry
-- annotation content
-- save timestamp
-
-A newer draft can be restored when the same document is reopened. This is a recovery mechanism, not a replacement for the final `Save As`/export action.
+Autosave stores a local draft under the current signed-in user and document hash. Drafts include PDF source bytes, page rotations, annotation geometry, annotation content and save timestamp. A newer draft can be restored when the same document is reopened. This is a recovery mechanism, not a replacement for the final `Save As`/export action.
 
 ## Security architecture
 
@@ -97,27 +92,21 @@ See `mobile/ANDROID-SETUP.md`. The recommended deployment is HTTPS + Chrome + In
 ### Structural smoke tests
 
 ```text
-node tests/smoke-test.mjs
+npm test
 ```
 
-These run locally without a browser and validate syntax, module wiring, critical controls, storage schema, print implementation, autosave and PWA configuration.
-
 ### Browser tests
-
-Install Playwright in a development environment and run:
 
 ```text
 npm install
 npm run test:browser
 ```
 
-Set `MUKOROB_BASE_URL` if the application is served somewhere other than `http://127.0.0.1:4173`.
+The repository also contains a GitHub Actions QA workflow that runs structural tests and Chromium browser smoke tests on pushes and pull requests to `main`.
 
-The browser suite is designed to run against the real application in Edge/Chromium and should be included in CI before production releases.
+## Next major priorities
 
-## Recommended next major priorities
-
-1. Validate v0.7.1 Avast → Chrome encrypted migration with the real Bradz dataset before any further destructive changes.
+1. Validate v0.7.1 Avast → Chrome encrypted migration with the real Bradz dataset before any destructive changes.
 2. Central Mukorob authentication/API with server-side authorization.
 3. Central document storage and explicit document sharing.
 4. Server-side audit trail and account revocation.
