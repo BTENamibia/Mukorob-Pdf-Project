@@ -1,0 +1,12 @@
+{
+  "name": "mukorob-pdf",
+  "private": true,
+  "version": "0.7.0",
+  "scripts": {
+    "test": "node tests/smoke-test.mjs",
+    "test:browser": "playwright test tests/playwright.spec.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.0"
+  }
+}

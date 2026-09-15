@@ -3,13 +3,19 @@
  * reader keeps working with no connection (matches the TRD's "core reader
  * usable offline" requirement). Bump CACHE_NAME to force an update when
  * you ship new app files. */
-const CACHE_NAME = 'mukorob-pdf-v6';
+const CACHE_NAME = 'mukorob-pdf-v0.7';
 const APP_SHELL = [
   './',
   './index.html',
   './manifest.webmanifest',
   './css/app.css',
   './js/app.js',
+  './js/app-core.js',
+  './js/modules/print.js',
+  './js/modules/annotations.js',
+  './js/modules/organizer.js',
+  './js/modules/autosave.js',
+  './js/modules/testing.js',
   './js/db.js',
   './icons/icon-192.png',
   './icons/icon-512.png',

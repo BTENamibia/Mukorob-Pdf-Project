@@ -1,6 +1,8 @@
 param([string]$SourceRoot)
 $ErrorActionPreference='Stop'
-$source=Join-Path $SourceRoot 'mukorob-pdf-app'
+if([string]::IsNullOrWhiteSpace($SourceRoot)){ $SourceRoot=Split-Path -Parent $MyInvocation.MyCommand.Path }
+$nested=Join-Path $SourceRoot 'mukorob-pdf-app'
+$source=if(Test-Path -LiteralPath $nested -PathType Container){$nested}else{$SourceRoot}
 $dest=Join-Path $env:LOCALAPPDATA 'Mukorob PDF'
 if(Test-Path $dest){Remove-Item $dest -Recurse -Force}
 New-Item -ItemType Directory -Path $dest -Force | Out-Null
@@ -45,7 +47,7 @@ Set-ItemProperty -Path 'HKCU:\Software\Classes\.pdf' -Name '(default)' -Value 'M
 # Uninstall entry for this-user installation.
 New-Item -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\MukorobPDF' -Force|Out-Null
 Set-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\MukorobPDF' -Name DisplayName -Value 'Mukorob PDF'
-Set-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\MukorobPDF' -Name DisplayVersion -Value '0.5.0'
+Set-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\MukorobPDF' -Name DisplayVersion -Value '0.6.0'
 Set-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\MukorobPDF' -Name Publisher -Value 'Bradz Trading Enterprises CC'
 Set-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\MukorobPDF' -Name UninstallString -Value ('powershell.exe -NoProfile -ExecutionPolicy Bypass -File "'+(Join-Path $dest 'uninstall.ps1')+'"')
 

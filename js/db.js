@@ -1,7 +1,7 @@
 /* Mukorob PDF — local-first IndexedDB layer. */
 const MukorobDB = (() => {
   const DB_NAME = 'mukorob-pdf';
-  const DB_VERSION = 2;
+  const DB_VERSION = 4;
   let dbPromise = null;
   function open() {
     if (dbPromise) return dbPromise;
@@ -13,6 +13,12 @@ const MukorobDB = (() => {
         if (!db.objectStoreNames.contains('recent')) db.createObjectStore('recent', { keyPath: 'hash' });
         if (!db.objectStoreNames.contains('annotations')) db.createObjectStore('annotations', { keyPath: 'hash' });
         if (!db.objectStoreNames.contains('users')) db.createObjectStore('users', { keyPath: 'id' });
+        // v0.6: user-scoped document stores. Legacy v0.5 stores are retained
+        // for a one-time Super Admin migration and are no longer used by staff.
+        if (!db.objectStoreNames.contains('recent_scoped')) db.createObjectStore('recent_scoped', { keyPath: 'id' });
+        if (!db.objectStoreNames.contains('annotations_scoped')) db.createObjectStore('annotations_scoped', { keyPath: 'id' });
+        if (!db.objectStoreNames.contains('audit')) db.createObjectStore('audit', { keyPath: 'id', autoIncrement: true });
+        if (!db.objectStoreNames.contains('drafts')) db.createObjectStore('drafts', { keyPath: 'id' });
       };
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => reject(req.error);

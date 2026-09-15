@@ -464,3 +464,53 @@ button:focus-visible,input:focus-visible,a:focus-visible,[tabindex]:focus-visibl
 .empty-hint{opacity:.75}
 /* Slightly larger touch targets on touch devices without affecting desktop density */
 @media(pointer:coarse){.icon-btn{min-width:38px;min-height:38px}}
+
+/* ===== v0.6 security/audit polish ===== */
+.audit-list{display:grid;gap:6px;max-height:260px;overflow:auto;margin:10px 0 8px}
+.audit-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 10px;border:1px solid var(--border);border-radius:10px;background:var(--surface-2)}
+.audit-row>div{min-width:0;display:flex;flex-direction:column;gap:2px}
+.audit-row strong{font-size:12px;text-transform:capitalize}
+.audit-row span,.audit-row time{font-size:10px;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.audit-row time{flex:0 0 auto}
+.user-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:4px}
+.recent-item-with-delete{position:relative;padding-right:34px}
+.recent-delete{position:absolute;right:5px;top:50%;transform:translateY(-50%);width:26px;height:26px;border:0;border-radius:8px;background:transparent;color:var(--text-dim);font-size:18px;cursor:pointer}
+.recent-delete:hover{background:color-mix(in srgb,var(--danger) 14%,var(--surface-2));color:var(--danger)}
+[data-theme="contrast"]{
+  --bg:#000;
+  --surface:#0a0a0a;
+  --surface-2:#151515;
+  --border:#fff;
+  --text:#fff;
+  --text-dim:#e6e6e6;
+  --primary:#ffd34d;
+  --accent:#66b7ff;
+}
+@media (max-width:720px){
+  .audit-row{padding:8px}
+  .user-actions{justify-content:flex-start}
+}
+
+.internal-badge{display:inline-flex;align-items:center;justify-content:center;margin-top:14px;padding:6px 10px;border:1px solid color-mix(in srgb,var(--primary) 45%,var(--border));border-radius:999px;font-size:9px;font-weight:750;letter-spacing:1px;color:var(--text-dim);background:color-mix(in srgb,var(--primary) 8%,transparent)}
+
+/* ===== Mukorob PDF v0.7 ===== */
+.autosave-status{font-size:10px;color:var(--text-dim);margin-left:8px;white-space:nowrap}
+#pagesContainer.placing-annotation .annot-layer{cursor:crosshair!important}
+.v07-annotation-control{position:absolute;z-index:20;border:1px solid transparent;border-radius:6px;box-sizing:border-box;cursor:move;touch-action:none;user-select:none;background:rgba(226,163,33,.035)}
+.v07-annotation-control.selected{border-color:var(--accent);box-shadow:0 0 0 2px rgba(226,163,33,.18)}
+.v07-annotation-control img{width:100%;height:100%;object-fit:contain;display:block;pointer-events:none}
+.v07-signature-visual{width:100%;height:100%;display:flex;align-items:center;padding:0 6px;font-family:cursive;font-style:italic;font-weight:700;font-size:clamp(16px,2.2vw,34px);white-space:nowrap;overflow:hidden;pointer-events:none}
+.v07-resize-handle{position:absolute;right:-6px;bottom:-6px;width:13px;height:13px;border-radius:50%;background:var(--accent);border:2px solid var(--surface);box-shadow:0 2px 8px rgba(0,0,0,.3);cursor:nwse-resize;touch-action:none}
+.organizer-modal{width:min(980px,96vw);max-height:90vh}.organizer-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;max-height:62vh;overflow:auto;padding:4px}.organizer-card{position:relative;padding:9px;border:1px solid var(--border);border-radius:12px;background:var(--surface-2);cursor:grab}.organizer-card:active{cursor:grabbing}.organizer-card:hover{border-color:var(--primary);transform:translateY(-1px)}.organizer-card canvas{display:block;width:100%;height:auto;background:#fff;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,.18)}.organizer-label{font-size:11px;font-weight:750;margin:7px 0 5px}.organizer-card .danger{font-size:11px;padding:4px 0}.placing-annotation .pdf-page .text-layer{pointer-events:none}
+#mukorobPrintSurface{display:none}
+@media print{
+  html,body{background:#fff!important}
+  body>*:not(#mukorobPrintSurface){display:none!important}
+  #mukorobPrintSurface{display:block!important;position:static!important;background:#fff!important;color:#000!important}
+  .mukorob-print-page{page-break-after:always;break-after:page;width:100%;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#fff}
+  .mukorob-print-page:last-child{page-break-after:auto;break-after:auto}
+  .mukorob-print-page img{display:block;max-width:100%;max-height:100vh;width:auto;height:auto;object-fit:contain}
+}
+@media(max-width:720px){.autosave-status{display:none}.organizer-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.organizer-modal{width:98vw}.v07-resize-handle{width:16px;height:16px;right:-8px;bottom:-8px}}
+@media(max-width:720px){#btnPageOrganizer{display:none!important}}
+#pagesContainer.placing-annotation .annot-layer{pointer-events:auto!important;cursor:crosshair!important}
