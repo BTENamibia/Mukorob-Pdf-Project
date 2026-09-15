@@ -2,6 +2,15 @@
 
 ## Bradz Internal Edition
 
+### v0.7.1
+- Added a backward-compatible IndexedDB schema upgrade without deleting existing local stores.
+- Added encrypted Super Admin local backup and browser-migration support using PBKDF2-SHA256 and AES-256-GCM.
+- Backup deliberately excludes the active browser session token.
+- Added migration coverage for users, settings, legacy/scoped recent data, annotations, drafts, audit records, and supported local document/share stores.
+- Added a Super Admin-only Backup & Migration control in the application interface.
+- Added explicit restore confirmation and post-restore reload.
+- Version marker updated to `0.7.1`.
+
 ### v0.7.0
 - Reorganised the application entry point into a modular ES-module feature layer while preserving the stable v0.6 core.
 - Replaced iframe-based printing with an in-app browser-native print surface using `window.print()`.
@@ -11,4 +20,3 @@
 - Added local draft autosave and recovery.
 - Added browser-test hooks and an automated Playwright test suite scaffold.
 - Added print, annotation, page-organisation and autosave audit events.
-
