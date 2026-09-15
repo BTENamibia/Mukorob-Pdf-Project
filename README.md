@@ -2,6 +2,15 @@
 
 Mukorob PDF is a local-first PDF Reader & Editor for Bradz Trading Enterprises CC (BTE Namibia), designed for controlled internal use.
 
+## v0.7.1 improvements
+
+- Added a backward-compatible local IndexedDB schema upgrade; existing v0.5/v0.6/v0.7 stores are retained.
+- Added **Super Admin-only encrypted Backup & Migration** for moving Mukorob local data between browsers/devices.
+- Backups use PBKDF2-SHA256 key derivation and AES-256-GCM encryption.
+- The active browser session token is deliberately excluded from backups.
+- Migration includes supported users, settings, recent data, annotations, drafts, audit records and local document/share records.
+- Restore requires the backup password and explicit confirmation before merging records.
+
 ## v0.7 improvements
 
 - Modular ES-module entry point with separate feature modules for print, annotations, page organisation, autosave and browser-test hooks.
@@ -21,6 +30,20 @@ Mukorob PDF is a local-first PDF Reader & Editor for Bradz Trading Enterprises C
 - Persistent login until explicit logout.
 - PWA installation for supported Windows/Android/iOS browsers and PDF file handling.
 - Mukorob navy/gold/rock branding retained.
+
+## v0.7.1 browser migration workflow
+
+For the current internal pilot, browser storage is local to each browser. If existing users are in Avast Browser and Chrome is being adopted:
+
+1. **Do not clear Avast Browser site data.**
+2. Open Mukorob PDF in Avast and sign in as Super Admin.
+3. Open **Backup & Migration** and create an encrypted backup using a strong backup password (minimum 12 characters).
+4. Keep the `.mkb.json` backup file somewhere secure and separate from the browser.
+5. Open Mukorob PDF in Chrome.
+6. Sign in as Super Admin if Chrome already has a Mukorob account, then open **Backup & Migration → Restore backup**. If Chrome is empty, use the bootstrap account only as the temporary administrative gate and then restore the Avast backup.
+7. Reload Mukorob PDF after restore and verify all expected users and permissions before retiring the Avast copy.
+
+The migration backup is a **browser-transfer mechanism**, not a server backup. It does not make the current local-first authentication architecture enterprise-grade.
 
 ## Printing
 
@@ -50,7 +73,7 @@ A newer draft can be restored when the same document is reopened. This is a reco
 
 ## Security architecture
 
-v0.7 remains a **local-device internal pilot**. Passwords are salted and hashed in browser Web Crypto. Users, sessions, permissions and audit records are still local to the device. This is not server-enforced enterprise authentication.
+v0.7.1 remains a **local-device internal pilot**. Passwords are salted and hashed in browser Web Crypto. Users, sessions, permissions and audit records are still local to the device. The encrypted migration feature protects exported local data, but it does not replace server-enforced authentication.
 
 For production organisation-wide deployment, Mukorob PDF should move authentication, sessions, permissions, document sharing and audit authorization to a server-side Mukorob API/identity service. The Super Admin role must then be enforced server-side.
 
@@ -92,16 +115,17 @@ Set `MUKOROB_BASE_URL` if the application is served somewhere other than `http:/
 
 The browser suite is designed to run against the real application in Edge/Chromium and should be included in CI before production releases.
 
-## Recommended v0.8 priorities
+## Recommended next major priorities
 
-1. Central Mukorob authentication/API with server-side authorization.
-2. Central document storage and explicit document sharing.
-3. Server-side audit trail and account revocation.
-4. True cryptographic PDF signatures rather than a visual signature annotation.
-5. OCR for scanned PDFs.
-6. Stronger PDF editing pipeline with progress indicators for large files.
-7. Automated browser tests on Windows Edge/Chrome and Android Chrome in CI.
-8. Signed Windows installer and native mobile packaging where distribution requirements justify it.
+1. Validate v0.7.1 Avast → Chrome encrypted migration with the real Bradz dataset before any further destructive changes.
+2. Central Mukorob authentication/API with server-side authorization.
+3. Central document storage and explicit document sharing.
+4. Server-side audit trail and account revocation.
+5. True cryptographic PDF signatures rather than a visual signature annotation.
+6. OCR for scanned PDFs.
+7. Stronger PDF editing pipeline with progress indicators for large files.
+8. Automated browser tests on Windows Edge/Chrome and Android Chrome in CI.
+9. Signed Windows installer and native mobile packaging where distribution requirements justify it.
 
 ## Ownership
 
