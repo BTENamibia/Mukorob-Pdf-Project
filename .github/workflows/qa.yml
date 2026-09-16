@@ -15,8 +15,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: npm
+          node-version: 24
       - name: Install dependencies
         run: npm install
       - name: Structural smoke tests
@@ -27,3 +26,10 @@ jobs:
         run: python3 -m http.server 4173 --bind 127.0.0.1 > /tmp/mukorob-http.log 2>&1 &
       - name: Browser smoke tests
         run: npm run test:browser
+      - name: Upload server log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mukorob-http-log
+          path: /tmp/mukorob-http.log
+          if-no-files-found: ignore
