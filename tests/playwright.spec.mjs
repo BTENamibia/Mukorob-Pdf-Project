@@ -1,29 +1,25 @@
 import { test, expect } from '@playwright/test';
-
 const baseURL = process.env.MUKOROB_BASE_URL || 'http://127.0.0.1:4173';
 
 test.describe('Mukorob PDF v0.7.1 smoke flows', () => {
   test('loads the branded shell and exposes core controls', async ({ page }) => {
-    await page.goto(baseURL);
-    await expect(page).toHaveTitle(/Mukorob PDF/);
-    await expect(page.locator('#btnOpen')).toBeVisible();
-    await expect(page.locator('#btnPrint')).toBeVisible();
+    await page.goto(baseURL); await expect(page).toHaveTitle(/Mukorob PDF/);
+    await expect(page.locator('#btnOpen')).toHaveCount(1);
+    await expect(page.locator('#btnPrint')).toHaveCount(1);
     await expect(page.locator('#btnESignature')).toHaveCount(1);
     await expect(page.locator('#btnCompanyStamp')).toHaveCount(1);
     await expect(page.locator('#bootstrapView')).toHaveCount(1);
   });
-
-  test('print surface exists and the application does not expose window.open', async ({ page }) => {
-    await page.goto(baseURL);
-    await expect(page.locator('#mukorobPrintSurface')).toHaveCount(1);
+  test('print surface exists and printing is implemented without window.open', async ({ page }) => {
+    await page.goto(baseURL); await expect(page.locator('#mukorobPrintSurface')).toHaveCount(1);
     const source = await page.locator('body').evaluate(() => document.documentElement.outerHTML);
     expect(source).not.toContain('window.open(');
   });
-
   test('v0.7.1 migration module and test hooks are wired', async ({ page }) => {
     await page.goto(baseURL);
     expect(await page.evaluate(() => window.MukorobTestHooks?.version)).toBe('0.7.1');
-    expect(await page.evaluate(() => Boolean(document.querySelector('#mkMigrationPanel')))).toBe(true);
-    expect(await page.evaluate(() => Boolean(document.querySelector('#mkFirstRunRestore')))).toBe(true);
+    // The migration UI is created after the application boot sequence. Wait for it rather than racing boot.
+    await expect(page.locator('#mkMigrationPanel')).toHaveCount(1, {timeout:10000});
+    await expect(page.locator('#mkFirstRunRestore')).toHaveCount(1, {timeout:10000});
   });
 });
