@@ -11,7 +11,7 @@ assert.match(core,/window\.MukorobApp\s*=\s*\{/);assert.match(db,/const DB_VERSI
 for(const store of ['settings','recent','annotations','users','recent_scoped','annotations_scoped','drafts','audit'])assert.match(db,new RegExp(`(?:['"]${store}['"]|\\b${store}:)`));
 assert.match(migration,/PBKDF2-SHA256/);assert.match(migration,/AES-GCM/);assert.match(migration,/mkFirstRunRestore/);assert.match(migration,/active browser session token is never exported/);
 assert.match(fixes,/v071Left/);assert.match(fixes,/v071Right/);assert.match(fixes,/v071-control/);assert.match(fixes,/removeAnn/);assert.match(fixes,/displayToDoc/);assert.match(fixes,/dashboardLogo/);assert.match(fixes,/loginBackgroundLogo/);assert.match(fixes,/loginIconLogo/);assert.match(fixes,/touchstart/);assert.match(fixes,/updateViaCache:'none'/);
-assert.equal(manifest.version,'0.7.1');assert.equal(version,'0.7.1');assert.match(html,/type="module" src="js\/app\.js"/);assert.match(sw,/mukorob-pdf-v0\.7\.1-fix1/);assert.match(sw,/v071-fixes\.js/);
+assert.equal(manifest.version,'0.7.1');assert.equal(version,'0.7.1');assert.match(html,/type="module" src="js\/app\.js"/);assert.match(sw,/mukorob-pdf-v0\.7\.1-fix3/);assert.match(sw,/v071-fixes\.js/);
 for(const id of ['btnPrint','btnCloseDocument','toolPageOrganizer','mukorobPrintSurface','autosaveStatus','bootstrapView'])assert.match(html,new RegExp(`id=["']${id}["']`));
 const print=read('js/modules/print.js');assert.match(print,/window\.print\(\)/);assert.doesNotMatch(print,/window\.open\s*\(/);
 assert.match(read('js/modules/annotations.js'),/v07-resize-handle/);assert.match(read('js/modules/annotations.js'),/pointermove/);assert.match(read('js/modules/organizer.js'),/draggable=true/);assert.match(read('js/modules/autosave.js'),/saveDraft/);
