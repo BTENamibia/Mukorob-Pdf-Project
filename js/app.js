@@ -6,3 +6,4 @@ import './modules/autosave.js';
 import './modules/data-migration.js';
 import './modules/testing.js';
 import './modules/v071-fixes.js';
+import './modules/v071-brand-auth.js';
