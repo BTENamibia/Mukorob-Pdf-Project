@@ -1,14 +1,24 @@
-/* Mukorob PDF — service worker. */
-const CACHE_NAME = 'mukorob-pdf-v0.7.1';
+/* Mukorob PDF v0.7.1 service worker — update-safe PWA cache. */
+const CACHE_NAME = 'mukorob-pdf-v0.7.1-fix1';
 const APP_SHELL = [
   './','./index.html','./manifest.webmanifest','./css/app.css','./js/app.js','./js/app-core.js',
   './js/modules/print.js','./js/modules/annotations.js','./js/modules/organizer.js','./js/modules/autosave.js',
-  './js/modules/data-migration.js','./js/modules/testing.js','./js/db.js',
+  './js/modules/data-migration.js','./js/modules/testing.js','./js/modules/v071-fixes.js','./js/db.js',
   './icons/icon-192.png','./icons/icon-512.png','./icons/icon-maskable-512.png','./icons/mukorob-pdf-logo.jpg',
   'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js',
   'https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js'
 ];
-self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE_NAME).then(cache=>Promise.all(APP_SHELL.map(url=>fetch(url,{mode:'cors'}).then(res=>res.ok?cache.put(url,res):null).catch(()=>null)))));self.skipWaiting();});
-self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE_NAME).map(k=>caches.delete(k)))));self.clients.claim();});
-self.addEventListener('fetch',event=>{if(event.request.method!=='GET')return;event.respondWith(caches.match(event.request).then(cached=>{if(cached)return cached;return fetch(event.request).then(res=>{if(res.ok&&event.request.url.startsWith(self.location.origin)){const clone=res.clone();caches.open(CACHE_NAME).then(cache=>cache.put(event.request,clone));}return res;}).catch(()=>cached);}));});
+const UPDATE_FIRST = /\/((index\.html)|(js\/app\.js)|(js\/app-core\.js)|(js\/modules\/[^/]+\.js)|(js\/db\.js)|(css\/app\.css))$/;
+self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE_NAME).then(async cache=>{for(const url of APP_SHELL){try{const res=await fetch(url,{mode:'cors',cache:'no-store'});if(res.ok)await cache.put(url,res);}catch(_){}}}).then(()=>self.skipWaiting())));
+self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE_NAME).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
+self.addEventListener('fetch',event=>{
+  if(event.request.method!=='GET')return;
+  const url=new URL(event.request.url);
+  const sameOrigin=url.origin===self.location.origin;
+  if(sameOrigin && UPDATE_FIRST.test(url.pathname)){
+    event.respondWith(fetch(event.request,{cache:'no-store'}).then(res=>{if(res.ok)caches.open(CACHE_NAME).then(c=>c.put(event.request,res.clone()));return res;}).catch(()=>caches.match(event.request).then(c=>c||caches.match(url.pathname))));
+    return;
+  }
+  event.respondWith(caches.match(event.request).then(cached=>cached||fetch(event.request).then(res=>{if(res.ok&&sameOrigin)caches.open(CACHE_NAME).then(c=>c.put(event.request,res.clone()));return res;}).catch(()=>cached)));
+});
