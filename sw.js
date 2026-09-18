@@ -1,5 +1,5 @@
-/* Mukorob PDF v0.7.1 service worker — update-safe PWA cache. */
-const CACHE_NAME = 'mukorob-pdf-v0.7.1-stable2';
+/* Mukorob PDF v0.7.2 service worker — update-safe PWA cache. */
+const CACHE_NAME = 'mukorob-pdf-v0.7.2-branding';
 const APP_SHELL=['./','./index.html','./manifest.webmanifest','./css/app.css','./js/app.js','./js/app-core.js','./js/modules/print.js','./js/modules/annotations.js','./js/modules/organizer.js','./js/modules/autosave.js','./js/modules/data-migration.js','./js/modules/testing.js','./js/modules/v071-brand-auth.js','./js/modules/update-manager.js','./js/db.js','./VERSION.txt','./icons/icon-192.png','./icons/icon-512.png','./icons/icon-maskable-512.png','./icons/mukorob-pdf-logo.jpg','https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js','https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js','https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js'];
 const UPDATE_FIRST=/\/((index\.html)|(js\/app\.js)|(js\/app-core\.js)|(js\/modules\/[^/]+\.js)|(js\/db\.js)|(css\/app\.css)|(VERSION\.txt))$/;
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE_NAME).then(async cache=>{for(const url of APP_SHELL){try{const res=await fetch(url,{mode:'cors',cache:'no-store'});if(res.ok)await cache.put(url,res);}catch(_){}}}).then(()=>self.skipWaiting())));
