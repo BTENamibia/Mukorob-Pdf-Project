@@ -238,13 +238,37 @@
         <label>Tagline
           <input type="text" id="cfgTag" maxlength="80">
         </label>
-        <label>Logo (shown in header &amp; splash)
+        <label>Header / top-left logo
           <div class="logo-row">
-            <img id="cfgLogoPreview" src="icons/icon-192.png" alt="">
+            <img id="cfgLogoPreview" src="icons/mukorob-pdf-logo.jpg" alt="">
             <button class="text-btn" id="btnLogoUpload">Upload logo</button>
             <button class="text-btn" id="btnLogoReset">Reset</button>
           </div>
-          <p class="hint">The approved Mukorob PDF branding is built into this release. Staff may receive the same visual configuration without receiving Super Admin credentials.</p>
+          <p class="hint">This controls only the small logo in the top-left application header.</p>
+        </label>
+        <label>Dashboard / empty-state logo
+          <div class="logo-row">
+            <img id="cfgDashboardLogoPreview" src="icons/mukorob-pdf-logo.jpg" alt="">
+            <button class="text-btn" id="btnDashboardLogoUpload">Upload logo</button>
+            <button class="text-btn" id="btnDashboardLogoReset">Reset</button>
+          </div>
+          <p class="hint">This is independent from the top-left header logo.</p>
+        </label>
+        <label>Login page icon logo
+          <div class="logo-row">
+            <img id="cfgLoginIconPreview" src="icons/mukorob-pdf-logo.jpg" alt="">
+            <button class="text-btn" id="btnLoginIconUpload">Upload logo</button>
+            <button class="text-btn" id="btnLoginIconReset">Reset</button>
+          </div>
+          <p class="hint">This controls the logo displayed on the Sign in and access-code screens.</p>
+        </label>
+        <label>Login page background
+          <div class="logo-row">
+            <img id="cfgLoginBackgroundPreview" src="icons/mukorob-pdf-logo.jpg" alt="">
+            <button class="text-btn" id="btnLoginBackgroundUpload">Upload background</button>
+            <button class="text-btn" id="btnLoginBackgroundReset">Reset</button>
+          </div>
+          <p class="hint">This background is independent from all application logos.</p>
         </label>
         <div class="color-row">
           <label>Primary colour
@@ -337,6 +361,9 @@
 
 <input type="file" id="fileInput" accept="application/pdf" hidden>
 <input type="file" id="logoInput" accept="image/*" hidden>
+<input type="file" id="dashboardLogoInput" accept="image/*" hidden>
+<input type="file" id="loginIconInput" accept="image/*" hidden>
+<input type="file" id="loginBackgroundInput" accept="image/*" hidden>
 <input type="file" id="adminStampInput" accept="image/png,image/jpeg,image/webp" hidden>
 
 <div id="mukorobPrintSurface" hidden aria-hidden="true"></div>
