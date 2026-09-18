@@ -1,4 +1,4 @@
-/* Mukorob PDF v0.7.1 — branding + mobile authentication corrective layer.
+/* Mukorob PDF v0.7.2 — branding + mobile authentication corrective layer.
    Keeps the same authentication UI on desktop and mobile/PWA. */
 (() => {
   const A = window.MukorobApp;
@@ -8,9 +8,9 @@
   function applyBranding() {
     const s = A.state?.settings || {};
     const header = s.logo || 'icons/mukorob-pdf-logo.jpg';
-    const dashboard = s.dashboardLogo || header;
-    const loginIcon = s.loginIconLogo || header;
-    const loginBg = s.loginBackgroundLogo || header;
+    const dashboard = s.dashboardLogo || 'icons/mukorob-pdf-logo.jpg';
+    const loginIcon = s.loginIconLogo || 'icons/mukorob-pdf-logo.jpg';
+    const loginBg = s.loginBackgroundLogo || 'icons/mukorob-pdf-logo.jpg';
 
     const brand = $('#brandLogo');
     const empty = $('.empty-mark');
