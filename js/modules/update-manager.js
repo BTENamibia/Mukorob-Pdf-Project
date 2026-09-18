@@ -1,6 +1,7 @@
 /* Mukorob PDF — cross-browser/PWA/Windows update manager. */
 (() => {
   const REPO_VERSION_URL = 'https://raw.githubusercontent.com/BTENamibia/Mukorob-Pdf-Project/main/VERSION.txt';
+  const isWindowsLocal = location.hostname === '127.0.0.1' || location.hostname === 'localhost';
   let currentVersion = '0.7.1';
   let latestVersion = null;
   let registration = null;
@@ -53,21 +54,23 @@
     panel.innerHTML = `
       <h3>Mukorob PDF update available</h3>
       <p>You are using <strong>v${currentVersion}</strong>. A newer release, <strong>v${v}</strong>, is available.</p>
-      <p>Your local users, documents, annotations and settings are not deleted by the update. Mukorob will refresh the application files and keep local browser data in place.</p>
+      <p>Your local users, documents, annotations and settings are not deleted by the update. Mukorob refreshes application files while keeping browser data in place.</p>
+      ${isWindowsLocal ? '<p><strong>Windows:</strong> close this app and run <strong>Mukorob PDF Update</strong> from your Desktop or Start Menu. Then reopen Mukorob PDF.</p>' : ''}
       <div class="mk-update-row">
         <button id="mkUpdateLater">Later</button>
-        <button id="mkUpdateNow" class="mk-update-primary">Update now</button>
+        <button id="mkUpdateNow" class="mk-update-primary">${isWindowsLocal ? "I updated — reload" : "Update now"}</button>
       </div>`;
     panel.querySelector('#mkUpdateLater').onclick = () => { panel.remove(); };
     panel.querySelector('#mkUpdateNow').onclick = async () => {
       const btn = panel.querySelector('#mkUpdateNow');
       btn.disabled = true;
       btn.textContent = 'Updating…';
-      try {
-        if (registration) await registration.update();
-      } catch (_) {}
-      // The service worker uses network-first handling for application files.
-      // A cache-busting navigation then loads the newly deployed build.
+      if (isWindowsLocal) {
+        btn.disabled = false;
+        btn.textContent = 'I updated — reload';
+        return;
+      }
+      try { if (registration) await registration.update(); } catch (_) {}
       setTimeout(() => location.replace(location.pathname + '?mkUpdate=' + Date.now() + location.hash), 500);
     };
   }
