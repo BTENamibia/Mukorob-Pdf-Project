@@ -1,6 +1,6 @@
 # Mukorob PDF — Android setup
 
-Mukorob PDF v0.6 is a Progressive Web App (PWA). For the Bradz internal pilot, the recommended Android deployment is an HTTPS-installed PWA rather than an unofficial APK wrapper.
+Mukorob PDF v0.7.1 is a Progressive Web App (PWA). For the Bradz internal pilot, the recommended Android deployment is an HTTPS-installed PWA rather than an unofficial APK wrapper.
 
 ## Install on Android
 
@@ -29,6 +29,13 @@ The account session remains active until the user explicitly logs out.
 ## Opening PDFs from Android file manager
 
 PWA file-handler support is included in the manifest where the browser/Android version supports it. Browser support varies. If the Android file manager does not offer Mukorob PDF as an open-with option, use **Open PDF** inside Mukorob PDF.
+
+## Updates and existing mobile data
+
+- Mukorob checks the published release version and shows an **Update available** prompt when a newer version is detected online.
+- Updating the PWA refreshes the application files; it does not intentionally clear the Android Chrome profile's Mukorob IndexedDB/localStorage data.
+- If the same Android Chrome installation was originally created on that phone, its login data should remain across normal PWA updates. If the account was created in Avast or another browser/device, that data will not automatically appear in Android Chrome.
+- Use **Backup & Migration** on the source browser as the supported way to move users, settings and compatible local data to Android Chrome.
 
 ## Security
 
