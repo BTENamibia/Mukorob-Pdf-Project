@@ -14,6 +14,9 @@ const DEFAULT_SETTINGS = {
   name: 'Mukorob PDF',
   tagline: 'One Platform. One Organisation. One View.',
   logo: 'icons/mukorob-pdf-logo.jpg',
+  dashboardLogo: 'icons/mukorob-pdf-logo.jpg',
+  loginIconLogo: 'icons/mukorob-pdf-logo.jpg',
+  loginBackgroundLogo: 'icons/mukorob-pdf-logo.jpg',
   primary: '#0B4F8A',
   accent: '#E2A321',
   notice: '',
@@ -120,10 +123,12 @@ function applySettings() {
   $('#brandTag').textContent = s.tagline;
   $('#emptyTitle').textContent = s.name;
   $('#emptyTag').textContent = s.tagline;
-  const logo = s.logo || 'icons/icon-192.png';
-  $('#brandLogo').src = logo;
-  $('.empty-mark').src = logo;
+  const headerLogo = s.logo || 'icons/mukorob-pdf-logo.jpg';
+  const dashboardLogo = s.dashboardLogo || headerLogo;
+  $('#brandLogo').src = headerLogo;
+  $('.empty-mark').src = dashboardLogo;
   $('meta[name="theme-color"]').setAttribute('content', s.primary);
+  window.dispatchEvent(new CustomEvent('mukorob:settings-applied', { detail: { settings: s } }));
   const notice = $('#staffNotice');
   if (s.notice && s.notice.trim()) {
     notice.hidden = false;
@@ -1260,20 +1265,40 @@ function wireAdminUI() {
   $('#btnAdmin').addEventListener('click', openAdmin);
   $('#btnAdminClose').addEventListener('click', () => ($('#adminModal').hidden = true));
 
-  $('#btnLogoUpload').addEventListener('click', () => $('#logoInput').click());
-  $('#logoInput').addEventListener('change', (e) => {
-    const f = e.target.files[0];
-    if (!f) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      $('#cfgLogoPreview').src = reader.result;
-      $('#cfgLogoPreview').dataset.value = reader.result;
-    };
-    reader.readAsDataURL(f);
-  });
+  const bindBrandUpload = (buttonId, inputId, previewId) => {
+    $(buttonId).addEventListener('click', () => $(inputId).click());
+    $(inputId).addEventListener('change', (e) => {
+      const f = e.target.files[0];
+      if (!f) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        $(previewId).src = reader.result;
+        $(previewId).dataset.value = reader.result;
+      };
+      reader.readAsDataURL(f);
+      e.target.value = '';
+    });
+  };
+  bindBrandUpload('#btnLogoUpload', '#logoInput', '#cfgLogoPreview');
+  bindBrandUpload('#btnDashboardLogoUpload', '#dashboardLogoInput', '#cfgDashboardLogoPreview');
+  bindBrandUpload('#btnLoginIconUpload', '#loginIconInput', '#cfgLoginIconPreview');
+  bindBrandUpload('#btnLoginBackgroundUpload', '#loginBackgroundInput', '#cfgLoginBackgroundPreview');
+
   $('#btnLogoReset').addEventListener('click', () => {
-    $('#cfgLogoPreview').src = 'icons/icon-192.png';
+    $('#cfgLogoPreview').src = DEFAULT_SETTINGS.logo;
     $('#cfgLogoPreview').dataset.value = '';
+  });
+  $('#btnDashboardLogoReset').addEventListener('click', () => {
+    $('#cfgDashboardLogoPreview').src = DEFAULT_SETTINGS.dashboardLogo;
+    $('#cfgDashboardLogoPreview').dataset.value = '';
+  });
+  $('#btnLoginIconReset').addEventListener('click', () => {
+    $('#cfgLoginIconPreview').src = DEFAULT_SETTINGS.loginIconLogo;
+    $('#cfgLoginIconPreview').dataset.value = '';
+  });
+  $('#btnLoginBackgroundReset').addEventListener('click', () => {
+    $('#cfgLoginBackgroundPreview').src = DEFAULT_SETTINGS.loginBackgroundLogo;
+    $('#cfgLoginBackgroundPreview').dataset.value = '';
   });
   $('#btnStampUpload').addEventListener('click', () => $('#adminStampInput').click());
   $('#adminStampInput').addEventListener('change', (e) => {
@@ -1291,8 +1316,10 @@ function wireAdminUI() {
     state.settings.annotationsEnabled = $('#cfgAnnotations').checked;
     state.settings.recentEnabled = $('#cfgRecent').checked;
     state.settings.companyStamp = $('#cfgStampPreview').dataset.value || null;
-    const logoVal = $('#cfgLogoPreview').dataset.value;
-    state.settings.logo = logoVal || null;
+    state.settings.logo = $('#cfgLogoPreview').dataset.value || DEFAULT_SETTINGS.logo;
+    state.settings.dashboardLogo = $('#cfgDashboardLogoPreview').dataset.value || DEFAULT_SETTINGS.dashboardLogo;
+    state.settings.loginIconLogo = $('#cfgLoginIconPreview').dataset.value || DEFAULT_SETTINGS.loginIconLogo;
+    state.settings.loginBackgroundLogo = $('#cfgLoginBackgroundPreview').dataset.value || DEFAULT_SETTINGS.loginBackgroundLogo;
     await saveSettings();
     applySettings();
     renderRecentList();
@@ -1371,8 +1398,14 @@ function populateAdminForm() {
   $('#cfgAccessCode').value = s.accessCode || '';
   $('#cfgAnnotations').checked = s.annotationsEnabled;
   $('#cfgRecent').checked = s.recentEnabled;
-  $('#cfgLogoPreview').src = s.logo || 'icons/icon-192.png';
+  $('#cfgLogoPreview').src = s.logo || DEFAULT_SETTINGS.logo;
   $('#cfgLogoPreview').dataset.value = s.logo || '';
+  $('#cfgDashboardLogoPreview').src = s.dashboardLogo || DEFAULT_SETTINGS.dashboardLogo;
+  $('#cfgDashboardLogoPreview').dataset.value = s.dashboardLogo || '';
+  $('#cfgLoginIconPreview').src = s.loginIconLogo || DEFAULT_SETTINGS.loginIconLogo;
+  $('#cfgLoginIconPreview').dataset.value = s.loginIconLogo || '';
+  $('#cfgLoginBackgroundPreview').src = s.loginBackgroundLogo || DEFAULT_SETTINGS.loginBackgroundLogo;
+  $('#cfgLoginBackgroundPreview').dataset.value = s.loginBackgroundLogo || '';
   $('#cfgStampPreview').src = s.companyStamp || 'icons/icon-192.png';
   $('#cfgStampPreview').dataset.value = s.companyStamp || '';
 }
