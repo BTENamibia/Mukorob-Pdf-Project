@@ -48,6 +48,14 @@ For the current internal pilot, browser storage is local to each browser. If exi
 
 The migration backup is a **browser-transfer mechanism**, not a server backup. It does not make the current local-first authentication architecture enterprise-grade.
 
+## Updates and device data
+
+- Mukorob PDF now checks the published repository version and shows an **Update available** prompt on supported online PWA/browser installations.
+- PWA updates refresh application files without deleting the browser's IndexedDB/localStorage data. Users, settings, Recent PDFs, annotations and drafts remain in the same browser profile.
+- Browser/device storage is **not shared automatically** between Avast, Chrome, Edge, Android Chrome, iOS browsers or separate Windows browser profiles. Moving an existing installation still requires the encrypted **Backup & Migration** workflow described above.
+- On the Windows local build, the application also checks for a newer release. When one is available, the user is directed to close Mukorob PDF and run **Mukorob PDF Update** from the Desktop or Start Menu. The updater downloads the latest repository package and replaces application files without intentionally removing browser-stored Mukorob data.
+- Version metadata is maintained in `VERSION.txt`; each release should increment that file and deploy the corresponding application/service-worker changes.
+
 ## Printing
 
 Printing is implemented through `window.print()` in the current Mukorob page. Before the dialog opens, Mukorob renders the document pages into a print-optimised surface. This avoids the v0.6 iframe print failure seen in some Chromium-derived browsers such as Avast Browser.
