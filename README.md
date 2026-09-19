@@ -1,6 +1,13 @@
-# Mukorob PDF v0.7.1 — Bradz Internal Edition
+# Mukorob PDF v0.7.3 — Bradz Internal Edition
 
 Mukorob PDF is a local-first PDF Reader & Editor for Bradz Trading Enterprises CC (BTE Namibia), designed for controlled internal use.
+
+## v0.7.3 branding release
+
+- Added the modern horizontal **Mukorob PDF Reader & Editor** brand mark.
+- Added the icon-only Mukorob heritage emblem for app icons, PWA launchers, authentication and social/app contexts.
+- Removed the old “One Platform. One Organisation. One View.” wording from the visual application branding.
+- Header/dashboard branding and login icon/background remain independently configurable.
 
 ## v0.7.1 improvements
 
@@ -114,7 +121,7 @@ The repository also contains a GitHub Actions QA workflow that runs structural t
 
 ## Next major priorities
 
-1. Validate v0.7.1 Avast → Chrome encrypted migration with the real Bradz dataset before any destructive changes.
+1. Validate v0.7.3 Avast → Chrome encrypted migration with the real Bradz dataset before any destructive changes.
 2. Central Mukorob authentication/API with server-side authorization.
 3. Central document storage and explicit document sharing.
 4. Server-side audit trail and account revocation.
