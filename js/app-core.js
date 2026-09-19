@@ -13,10 +13,10 @@ pdfjsLib.GlobalWorkerOptions.workerSrc =
 const DEFAULT_SETTINGS = {
   name: 'Mukorob PDF',
   tagline: 'One Platform. One Organisation. One View.',
-  logo: 'icons/mukorob-pdf-logo.jpg',
-  dashboardLogo: 'icons/mukorob-pdf-logo.jpg',
-  loginIconLogo: 'icons/mukorob-pdf-logo.jpg',
-  loginBackgroundLogo: 'icons/mukorob-pdf-logo.jpg',
+  logo: 'icons/mukorob-brand.jpg',
+  dashboardLogo: 'icons/mukorob-brand.jpg',
+  loginIconLogo: 'icons/mukorob-icon.jpg',
+  loginBackgroundLogo: 'icons/mukorob-brand.jpg',
   primary: '#0B4F8A',
   accent: '#E2A321',
   notice: '',
@@ -123,7 +123,7 @@ function applySettings() {
   $('#brandTag').textContent = s.tagline;
   $('#emptyTitle').textContent = s.name;
   $('#emptyTag').textContent = s.tagline;
-  const headerLogo = s.logo || 'icons/mukorob-pdf-logo.jpg';
+  const headerLogo = s.logo || 'icons/mukorob-brand.jpg';
   const dashboardLogo = s.dashboardLogo || headerLogo;
   $('#brandLogo').src = headerLogo;
   $('.empty-mark').src = dashboardLogo;
