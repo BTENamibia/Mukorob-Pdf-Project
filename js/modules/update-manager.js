@@ -1,11 +1,12 @@
-/* Mukorob PDF — cross-browser/PWA/Windows update manager. */
+/* Mukorob PDF — reliable cross-browser/PWA/Windows update manager. */
 (() => {
   const REPO_VERSION_URL = 'https://raw.githubusercontent.com/BTENamibia/Mukorob-Pdf-Project/main/VERSION.txt';
   const isWindowsLocal = location.hostname === '127.0.0.1' || location.hostname === 'localhost';
-  let currentVersion = '0.7.1';
+  let currentVersion = '0.7.3';
   let latestVersion = null;
   let registration = null;
   let updateShown = false;
+  let updateInProgress = false;
 
   const parseVersion = (v) => String(v || '').trim().replace(/^v/i, '');
   const parts = (v) => parseVersion(v).split('.').map(n => Number.parseInt(n, 10) || 0);
@@ -39,6 +40,33 @@
     document.head.appendChild(s);
   }
 
+  function reloadAfterUpdate() {
+    const url = new URL(location.href);
+    url.searchParams.set('mkUpdate', Date.now());
+    location.replace(url.href);
+  }
+
+  async function waitForControllerChange(timeoutMs = 15000) {
+    if (!('serviceWorker' in navigator)) return false;
+    if (navigator.serviceWorker.controller) {
+      // Wait for the newly installed worker to take control. sw.js uses skipWaiting/clientsClaim.
+      return await new Promise(resolve => {
+        let settled = false;
+        const finish = value => {
+          if (settled) return;
+          settled = true;
+          navigator.serviceWorker.removeEventListener('controllerchange', onChange);
+          clearTimeout(timer);
+          resolve(value);
+        };
+        const onChange = () => finish(true);
+        const timer = setTimeout(() => finish(false), timeoutMs);
+        navigator.serviceWorker.addEventListener('controllerchange', onChange);
+      });
+    }
+    return true;
+  }
+
   function showUpdate(v) {
     if (updateShown || !newer(v, currentVersion)) return;
     updateShown = true;
@@ -62,16 +90,44 @@
       </div>`;
     panel.querySelector('#mkUpdateLater').onclick = () => { panel.remove(); };
     panel.querySelector('#mkUpdateNow').onclick = async () => {
+      if (updateInProgress) return;
+      updateInProgress = true;
       const btn = panel.querySelector('#mkUpdateNow');
       btn.disabled = true;
-      btn.textContent = 'Updating…';
+      btn.textContent = 'Downloading update…';
+
       if (isWindowsLocal) {
         btn.disabled = false;
         btn.textContent = 'I updated — reload';
+        updateInProgress = false;
         return;
       }
-      try { if (registration) await registration.update(); } catch (_) {}
-      setTimeout(() => location.replace(location.pathname + '?mkUpdate=' + Date.now() + location.hash), 500);
+
+      try {
+        if (!registration) registration = await navigator.serviceWorker.getRegistration();
+        if (!registration) registration = await navigator.serviceWorker.register('sw.js');
+        if (registration) {
+          btn.textContent = 'Installing update…';
+          await registration.update();
+
+          // A waiting worker can occur in browsers/PWAs that do not activate immediately.
+          if (registration.waiting) {
+            registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+          }
+
+          const controlled = await waitForControllerChange(15000);
+          if (controlled || !navigator.serviceWorker.controller) {
+            btn.textContent = 'Reloading…';
+            reloadAfterUpdate();
+            return;
+          }
+        }
+      } catch (_) {
+        // Fall through to a cache-busting reload. The SW will retry installation on next load.
+      }
+
+      btn.textContent = 'Refreshing…';
+      setTimeout(reloadAfterUpdate, 300);
     };
   }
 
@@ -94,13 +150,12 @@
         if (registration) await registration.update();
         else registration = await navigator.serviceWorker.register('sw.js');
         navigator.serviceWorker.addEventListener('controllerchange', () => {
-          // If the SW was replaced while the user is working, offer a controlled refresh.
-          if (latestVersion && newer(latestVersion, currentVersion)) showUpdate(latestVersion);
+          // A completed SW replacement is handled by the update flow; avoid duplicate prompts.
+          if (!updateInProgress && latestVersion && newer(latestVersion, currentVersion)) showUpdate(latestVersion);
         });
       } catch (_) {}
     }
     await checkLatest();
-    // Recheck periodically so long-running Windows/PWA sessions do not stay stale.
     setInterval(checkLatest, 30 * 60 * 1000);
   }
 
