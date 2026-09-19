@@ -1,6 +1,7 @@
 /* Mukorob PDF v0.7 — interactive signature & stamp placement. */
 const A = window.MukorobApp;
 const { state, $, toast, requirePermission, persistAnnotations, writeAudit } = A;
+const DB = A.db;
 
 let placement = null;
 let selected = null;
@@ -37,6 +38,17 @@ function beginPlacement(type, src=null, text=null) {
 function cancelPlacement() {
   placement = null;
   $('#pagesContainer')?.classList.remove('placing-annotation');
+}
+async function saveUserStamp(src) {
+  const userId = A.currentUserId?.();
+  if (!userId || !DB || !src) return;
+  await DB.put('settings', { key: 'userStamp:' + userId, userId, value: src, updatedAt: Date.now() });
+}
+async function getUserStamp() {
+  const userId = A.currentUserId?.();
+  if (!userId || !DB) return null;
+  const row = await DB.get('settings', 'userStamp:' + userId);
+  return row?.value || null;
 }
 function addPlaced(type, page, pt, src, text) {
   const r = type === 'stamp' ? {x:clamp(pt.x-.16,0,.68),y:clamp(pt.y-.07,0,.86),w:.32,h:.14} : {x:clamp(pt.x-.18,0,.64),y:clamp(pt.y-.045,0,.91),w:.36,h:.09};
@@ -85,10 +97,16 @@ function makeInteractive(pageNum, a, layer, w, h) {
       a.rect.w=clamp(resize.rect.w+dx,.02,1-resize.rect.x);
       a.rect.h=clamp(resize.rect.h+dy,.02,1-resize.rect.y);
     }
-    persistAnnotations(); A.drawAnnotationsForPage(pageNum); decoratePage(pageNum);
+    // Update the live control only. Redrawing the entire annotation layer on
+    // every pointermove destroys the element being dragged and makes it appear
+    // immovable.
+    el.style.left=(a.rect.x*w)+'px';
+    el.style.top=(a.rect.y*h)+'px';
+    el.style.width=(a.rect.w*w)+'px';
+    el.style.height=(a.rect.h*h)+'px';
     selected=a;
   });
-  const end=()=>{ if(drag||resize){ persistAnnotations(); writeAudit('annotation-repositioned',{file:state.fileName,page:pageNum,type:a.type,id:a.id}); } drag=null; resize=null; };
+  const end=()=>{ if(drag||resize){ persistAnnotations(); A.drawAnnotationsForPage(pageNum); decoratePage(pageNum); writeAudit('annotation-repositioned',{file:state.fileName,page:pageNum,type:a.type,id:a.id}); } drag=null; resize=null; };
   el.addEventListener('pointerup',end); el.addEventListener('pointercancel',end);
   el.addEventListener('dblclick',e=>{e.stopPropagation(); if(confirm('Remove this '+a.type+'?')){const i=state.annotations.findIndex(x=>x.id===a.id);if(i>-1)state.annotations.splice(i,1);persistAnnotations();A.drawAnnotationsForPage(pageNum);decoratePage(pageNum);toast('Removed.');}});
   layer.appendChild(el);
@@ -122,17 +140,23 @@ function wire(){
   $('#toolESignature').addEventListener('click',e=>{e.stopImmediatePropagation();$('#toolsMenu').hidden=true;beginPlacement('signature');},true);
   $('#btnCompanyStamp').addEventListener('click',e=>{e.stopImmediatePropagation();chooseStamp();},true);
   $('#toolCompanyStamp').addEventListener('click',e=>{e.stopImmediatePropagation();$('#toolsMenu').hidden=true;chooseStamp();},true);
+  $('#toolUploadStamp')?.addEventListener('click',e=>{e.stopImmediatePropagation();$('#toolsMenu').hidden=true;uploadUserStamp();},true);
   document.addEventListener('keydown',e=>{if(e.key==='Escape'&&placement)cancelPlacement();});
   window.addEventListener('resize',decorateAll);
 }
-function chooseStamp(){
+async function chooseStamp(){
   if(!requirePermission('stamp'))return;
-  const src=state.settings.companyStamp;
+  const src=await getUserStamp();
   if(src) beginPlacement('stamp',src);
   else $('#stampInput').click();
 }
+async function uploadUserStamp(){
+  if(!requirePermission('stamp'))return;
+  $('#stampInput').dataset.saveForUser='1';
+  $('#stampInput').click();
+}
 window.addEventListener('DOMContentLoaded',()=>{
   wire();
-  $('#stampInput').addEventListener('change',e=>{e.stopImmediatePropagation();const f=e.target.files?.[0]; if(!f)return; const rd=new FileReader();rd.onload=()=>beginPlacement('stamp',rd.result);rd.readAsDataURL(f);e.target.value='';},true);
+  $('#stampInput').addEventListener('change',e=>{e.stopImmediatePropagation();const f=e.target.files?.[0]; if(!f)return; const rd=new FileReader();rd.onload=async()=>{ await saveUserStamp(rd.result); beginPlacement('stamp',rd.result); };rd.readAsDataURL(f);e.target.value='';},true);
   decorateAll();
 });
