@@ -90,6 +90,7 @@ function installMobileTouchZoom(){
 }
 
 window.addEventListener('DOMContentLoaded', async () => {
+  installMobileTouchZoom();
   await loadSettings();
   applySettings();
   wireGlobalUI();
