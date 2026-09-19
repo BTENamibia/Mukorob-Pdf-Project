@@ -2365,7 +2365,7 @@ window.addEventListener('DOMContentLoaded',()=>{
 
 /* v0.7 module bridge: expose the stable application surface to ES modules. */
 window.MukorobApp = {
-  state, $, $$, toast, requirePermission, hasPermission, currentUserId,
+  state, $, $, toast, requirePermission, hasPermission, currentUserId, db: MukorobDB,
   openFile, closeDocument, renderPage, drawAnnotationsForPage, persistAnnotations,
   saveBytesAs, buildWorkingPdfBytes, hasWorkingEdits, writeAudit, loadSettings,
   saveSettings, applySettings, updateZoomControls, buildThumbnails, highlightCurrentThumb,
