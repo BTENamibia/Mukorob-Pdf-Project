@@ -65,6 +65,30 @@ const $$ = (sel) => Array.from(document.querySelectorAll(sel));
 /* ---------------------------------------------------------------------- */
 /* Boot                                                                    */
 /* ---------------------------------------------------------------------- */
+/* Mobile PDF touch controls: two-finger pinch zoom without browser-page zoom.
+   One-finger scrolling remains native; only two-finger gestures are intercepted. */
+function installMobileTouchZoom(){
+  const pages=$('#pagesContainer');
+  if(!pages||pages.dataset.touchZoomInstalled)return;
+  pages.dataset.touchZoomInstalled='1';
+  let pinchStart=0, scaleStart=1, active=false;
+  const distance=(a,b)=>Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);
+  pages.addEventListener('touchstart',e=>{
+    if(e.touches.length===2){
+      active=true; pinchStart=distance(e.touches[0],e.touches[1]); scaleStart=state.scale;
+    }
+  },{passive:false});
+  pages.addEventListener('touchmove',e=>{
+    if(!active||e.touches.length!==2)return;
+    e.preventDefault();
+    const d=distance(e.touches[0],e.touches[1]);
+    if(pinchStart>0) setScale(scaleStart*(d/pinchStart));
+  },{passive:false});
+  const end=()=>{active=false;pinchStart=0;};
+  pages.addEventListener('touchend',end,{passive:true});
+  pages.addEventListener('touchcancel',end,{passive:true});
+}
+
 window.addEventListener('DOMContentLoaded', async () => {
   await loadSettings();
   applySettings();
