@@ -7,10 +7,10 @@
 
   function applyBranding() {
     const s = A.state?.settings || {};
-    const header = s.logo || 'icons/mukorob-pdf-logo.jpg';
-    const dashboard = s.dashboardLogo || 'icons/mukorob-pdf-logo.jpg';
-    const loginIcon = s.loginIconLogo || 'icons/mukorob-pdf-logo.jpg';
-    const loginBg = s.loginBackgroundLogo || 'icons/mukorob-pdf-logo.jpg';
+    const header = s.logo || 'icons/mukorob-brand.jpg';
+    const dashboard = s.dashboardLogo || 'icons/mukorob-brand.jpg';
+    const loginIcon = s.loginIconLogo || 'icons/mukorob-icon.jpg';
+    const loginBg = s.loginBackgroundLogo || 'icons/mukorob-brand.jpg';
 
     const brand = $('#brandLogo');
     const empty = $('.empty-mark');
