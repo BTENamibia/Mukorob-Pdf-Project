@@ -1696,8 +1696,8 @@ function wireV04UI() {
   document.addEventListener('click', (e) => {
     if (!e.target.closest('#toolsMenu') && !e.target.closest('#btnTools') && !e.target.closest('#btnPdfEdit')) $('#toolsMenu').hidden = true;
   });
-  $('#toolRotateLeft').addEventListener('click', () => { $('#toolsMenu').hidden=true; rotateCurrentPage(-90); });
-  $('#toolRotateRight').addEventListener('click', () => { $('#toolsMenu').hidden=true; rotateCurrentPage(90); });
+  $('#toolRotateLeft').addEventListener('click', () => { $('#toolsMenu').hidden=true; rotateCurrentPageAnticlockwise(); });
+  $('#toolRotateRight').addEventListener('click', () => { $('#toolsMenu').hidden=true; rotateCurrentPageClockwise(); });
   $('#toolDeletePage').addEventListener('click', () => { $('#toolsMenu').hidden=true; deleteCurrentPage(); });
   $('#toolMovePage').addEventListener('click', () => { $('#toolsMenu').hidden=true; moveCurrentPage(); });
   $('#toolExtract').addEventListener('click', () => { $('#toolsMenu').hidden=true; extractPages(); });
@@ -2069,8 +2069,11 @@ async function rotateCurrentPageAccurate(delta){
   const p=state.pageEls[n-1];
   if(p){p.rendered=false; if(p.canvas){p.canvas.width=0;p.canvas.height=0;p.canvas=null;}p.textLayer=null;p.annotLayer=null;}
   layoutPages(); await renderPage(n,true); highlightCurrentThumb();
-  toast('Page '+n+' rotated '+(delta<0?'left':'right')+'. Save As to keep the rotation in the PDF.');
+  toast('Page '+n+' rotated '+(delta<0?'anticlockwise':'clockwise')+' 90°. Save As to keep the rotation in the PDF.');
 }
+const rotateCurrentPageAnticlockwise = () => rotateCurrentPageAccurate(-90);
+const rotateCurrentPageClockwise = () => rotateCurrentPageAccurate(90);
+
 function hasRotationEdits() {
   for (const r of state.pageRotations.values()) if ((Number(r)||0) % 360 !== 0) return true;
   return false;
