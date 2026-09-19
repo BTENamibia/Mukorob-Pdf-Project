@@ -2033,7 +2033,16 @@ layoutPages=function(){
 const v05BaseRenderPage=renderPage;
 renderPage=async function(pageNum,force=false){
   const p=state.pageEls[pageNum-1]; if(!p||!state.pdfDoc)return;
-  const rot=state.pageRotations.get(pageNum)||0;
+  // Rotation is a forced render. If an observer-triggered render is already
+  // in flight, wait for it rather than silently dropping the rotation render.
+  if(p.rendering && force){
+    const started=performance.now();
+    while(p.rendering && performance.now()-started<5000){
+      await new Promise(resolve=>setTimeout(resolve,16));
+    }
+  }
+  if(p.rendering)return;
+  const rot=((Number(state.pageRotations.get(pageNum))||0)%360+360)%360;
   const old=state.pageRotations.get(pageNum);
   // Temporarily expose a page-specific viewport to the v0.4 renderer.
   const page=await state.pdfDoc.getPage(pageNum);
@@ -2064,11 +2073,21 @@ renderPage=async function(pageNum,force=false){
 
 async function rotateCurrentPageAccurate(delta){
   if(!requirePermission('edit'))return; if(!state.pdfDoc)return;
-  const n=state.currentPage; const current=state.pageRotations.get(n)||0; const next=((current+delta)%360+360)%360;
+  const n=state.currentPage;
+  const current=((Number(state.pageRotations.get(n))||0)%360+360)%360;
+  const next=((current+delta)%360+360)%360;
   state.pageRotations.set(n,next);
   const p=state.pageEls[n-1];
-  if(p){p.rendered=false; if(p.canvas){p.canvas.width=0;p.canvas.height=0;p.canvas=null;}p.textLayer=null;p.annotLayer=null;}
-  layoutPages(); await renderPage(n,true); highlightCurrentThumb();
+  if(p){
+    // Invalidate the old bitmap and explicitly force the new rotated PDF.js render.
+    p.rendered=false;
+    if(p.canvas){p.canvas.width=0;p.canvas.height=0;p.canvas=null;}
+    p.textLayer=null;
+    p.annotLayer=null;
+  }
+  layoutPages();
+  await renderPage(n,true);
+  highlightCurrentThumb();
   toast('Page '+n+' rotated '+(delta<0?'anticlockwise':'clockwise')+' 90°. Save As to keep the rotation in the PDF.');
 }
 const rotateCurrentPageAnticlockwise = () => rotateCurrentPageAccurate(-90);
