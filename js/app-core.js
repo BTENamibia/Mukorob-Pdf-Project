@@ -832,11 +832,8 @@ function attachAnnotPointerHandlers(pageNum, layer) {
     } else if (state.activeTool === 'note') {
       openNotePopover(pageNum, pt, null);
     } else if (state.activeTool === 'signature') {
-      const signature = prompt('Type your signature name or initials:');
-      if (signature && signature.trim()) {
-        addAnnotation({ type: 'signature', color: $('#annotColor').value, page: pageNum, rect: { x: pt.x, y: pt.y, w: 0.26, h: 0.065 }, text: signature.trim() });
-        drawAnnotationsForPage(pageNum);
-      }
+      /* E-signature placement is owned exclusively by modules/annotations.js. */
+    }
     }
   });
 
@@ -951,14 +948,7 @@ function drawAnnotationsForPage(pageNum, liveDraft = null) {
       svg.appendChild(poly);
       layer.appendChild(svg);
     } else if (a.type === 'signature') {
-      const d = document.createElement('div');
-      d.style.position = 'absolute'; d.style.left = a.rect.x*w+'px'; d.style.top = a.rect.y*h+'px';
-      d.style.width = a.rect.w*w+'px'; d.style.height = a.rect.h*h+'px';
-      d.style.display='flex'; d.style.alignItems='center';
-      d.style.fontFamily='cursive'; d.style.fontStyle='italic'; d.style.fontWeight='700';
-      d.style.fontSize=Math.max(15, Math.min(34, h*0.022))+'px'; d.style.color=a.color;
-      d.textContent=a.text || 'Signature'; d.style.pointerEvents='none';
-      layer.appendChild(d);
+      /* Interactive signatures are rendered by modules/annotations.js only. */
     } else if (a.type === 'note') {
       const m = document.createElement('div');
       m.className = 'note-marker';
@@ -2216,27 +2206,10 @@ const v05Merge=mergePdfs; mergePdfs=async function(files){if(requirePermission('
 const v05Properties=showProperties; showProperties=async function(){if(requirePermission('organize'))return v05Properties();};
 const v05Export=exportAnnotatedPdf; exportAnnotatedPdf=async function(){if(requirePermission('annotate'))return v05Export();};
 
-function startESignature(){if(!requirePermission('signature'))return;if(!state.pdfDoc)return toast('Open a PDF first.');$('#annotToolbar').hidden=false;setTool('signature');writeAudit('signature-started',{file:state.fileName});toast('Tap or click the document where the e-signature should appear.');}
-function startCompanyStamp(){if(!requirePermission('stamp'))return;if(!state.pdfDoc)return toast('Open a PDF first.');writeAudit('stamp-started',{file:state.fileName});if(state.settings.companyStamp){const bin=atob(state.settings.companyStamp.split(',')[1]);const bytes=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);const mime=(state.settings.companyStamp.match(/^data:([^;]+)/)||[])[1]||'image/png';placeStampImage(new File([bytes],'company-stamp.'+(mime.includes('jpeg')?'jpg':'png'),{type:mime}));}else $('#stampInput').click();}
+/* E-signature and stamp placement are implemented by modules/annotations.js. */
 
-/* Stamp annotation rendering/export. */
-const v05DrawAnnotations=drawAnnotationsForPage;
-drawAnnotationsForPage=function(pageNum,liveDraft=null){
-  v05DrawAnnotations(pageNum,liveDraft);
-  const p=state.pageEls[pageNum-1]; if(!p||!p.annotLayer)return;
-  const w=p.canvas?.clientWidth || p.wrap.clientWidth, h=p.canvas?.clientHeight || p.wrap.clientHeight;
-  state.annotations.filter(a=>a.page===pageNum&&a.type==='stamp').forEach(a=>{
-    const img=document.createElement('img');img.className='stamp-annotation';img.src=a.src;img.style.left=(a.rect.x*w)+'px';img.style.top=(a.rect.y*h)+'px';img.style.width=(a.rect.w*w)+'px';img.style.height=(a.rect.h*h)+'px';img.draggable=false;p.annotLayer.appendChild(img);
-  });
-};
-async function placeStampImage(file){
-  const reader=new FileReader();reader.onload=()=>{
-    const p=state.pageEls[state.currentPage-1]; if(!p)return;
-    const rect={x:.62,y:.76,w:.25,h:.12};
-    addAnnotation({type:'stamp',color:'#E2A321',page:state.currentPage,rect,src:reader.result});
-    drawAnnotationsForPage(state.currentPage);toast('Company stamp placed. Use Save copy with annotations to embed it.');
-  };reader.readAsDataURL(file);
-}
+/* Stamp rendering is owned exclusively by modules/annotations.js. */
+/* Legacy stamp placement removed: modules/annotations.js owns stamp placement. */
 
 async function buildWorkingPdfBytes() {
   if (!state.fileBytesForExport) return null;
@@ -2300,9 +2273,6 @@ window.addEventListener('DOMContentLoaded',()=>{
   $('#btnPrint').addEventListener('click',printOriginalPdf);
   $('#btnPrintMobile').addEventListener('click',printOriginalPdf);
   $('#btnPdfEdit').addEventListener('click',(e)=>{e.stopPropagation();if(requirePermission('edit')){$('#toolsMenu').hidden=false;}});
-  $('#btnESignature').addEventListener('click',startESignature);
-  $('#btnCompanyStamp').addEventListener('click',startCompanyStamp);
-  $('#stampInput').addEventListener('change',e=>{const f=e.target.files?.[0];if(f)placeStampImage(f);e.target.value='';});
   $('#btnLogout').addEventListener('click',logoutUser);
 
   $('#btnLogin').addEventListener('click',async()=>{
