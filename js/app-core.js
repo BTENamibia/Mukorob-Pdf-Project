@@ -186,6 +186,7 @@ function wireGlobalUI() {
   });
 
   // theme cycle: dark -> light -> sepia -> high contrast -> dark
+  $('#btnLoginTop')?.addEventListener('click', () => showAuth('login'));
   $('#btnTheme').addEventListener('click', () => {
     const order = ['dark', 'light', 'sepia', 'contrast'];
     const next = order[(order.indexOf(state.settings.theme) + 1) % order.length];
@@ -1750,7 +1751,7 @@ function wireV04UI() {
   // Toolbar menu
   $('#btnTools').addEventListener('click', (e) => {
     e.stopPropagation();
-    if (!state.pdfDoc) { toast('Open a PDF to use PDF tools.'); return; }
+    if (!state.pdfDoc && state.auth?.user) { toast('Open a PDF to use PDF tools.'); return; }
     $('#toolsMenu').hidden = !$('#toolsMenu').hidden;
   });
   document.addEventListener('click', (e) => {
@@ -1767,6 +1768,7 @@ function wireV04UI() {
   $('#toolDownload').addEventListener('click', () => { $('#toolsMenu').hidden=true; $('#btnDownload').click(); });
   $('#toolFullscreen').addEventListener('click', () => { $('#toolsMenu').hidden=true; $('#btnFullscreen').click(); });
   $('#toolTheme').addEventListener('click', () => { $('#toolsMenu').hidden=true; $('#btnTheme').click(); });
+  $('#toolLogin').addEventListener('click', () => { $('#toolsMenu').hidden=true; showAuth('login'); });
   $('#toolAdmin').addEventListener('click', () => { $('#toolsMenu').hidden=true; openAdmin(); });
   $('#toolLogout').addEventListener('click', () => { $('#toolsMenu').hidden=true; $('#btnLogout').click(); });
   $('#mergeInput').addEventListener('change', e => { const files=Array.from(e.target.files||[]); mergePdfs(files); e.target.value=''; });
@@ -1928,6 +1930,8 @@ function updateAuthUI(){
   $('#currentUserBadge').textContent=u ? (u.role==='superadmin'?'SUPER ADMIN':u.fullName||u.id) : '';
   $('#currentUserBadge').hidden=!u;
   $('#btnLogout').hidden=!u;
+  if($('#btnLoginTop')) $('#btnLoginTop').hidden=!!u;
+  if($('#toolLogin')) $('#toolLogin').hidden=!!u;
   if($('#btnAdmin')) $('#btnAdmin').hidden=!u || u.role!=='superadmin';
   if($('#toolAdmin')) $('#toolAdmin').hidden=!u || u.role!=='superadmin';
   applyPermissionUI();
