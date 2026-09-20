@@ -514,3 +514,11 @@ button:focus-visible,input:focus-visible,a:focus-visible,[tabindex]:focus-visibl
 @media(max-width:720px){.autosave-status{display:none}.organizer-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.organizer-modal{width:98vw}.v07-resize-handle{width:16px;height:16px;right:-8px;bottom:-8px}}
 @media(max-width:720px){#btnPageOrganizer{display:none!important}}
 #pagesContainer.placing-annotation .annot-layer{pointer-events:auto!important;cursor:crosshair!important}
+
+/* v0.7.6 UI regression guard: keep Super Admin settings and explicit sign-in reachable. */
+#btnLoginTop{display:flex}
+@media(max-width:720px){
+  #btnAdmin{order:-20!important;display:flex!important}
+  #btnAdmin[hidden]{display:none!important}
+  #btnLoginTop{order:-19!important}
+}
