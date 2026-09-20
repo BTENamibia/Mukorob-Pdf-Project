@@ -230,15 +230,16 @@
     const id = A.normalizeId(document.querySelector('#newUserName')?.value);
     const fullName = document.querySelector('#newUserFullName')?.value.trim();
     const password = document.querySelector('#newUserPassword')?.value;
+    const role = document.querySelector('#newUserRole')?.value || 'staff';
     const organizationId = document.querySelector('#newUserCompany')?.value;
     const perms = {};
     document.querySelectorAll('#permissionChecks input').forEach(c=>perms[c.dataset.permission]=c.checked);
     if (!id || !fullName || !password || !organizationId) return A.toast('User ID, staff name, temporary password and company are required.');
     try {
       A.toast('Registering central Mukorob user…');
-      const body=await centralRequest({action:'create_user',userId:id,fullName,password,organizationId,permissions:perms});
+      const body=await centralRequest({action:'create_user',userId:id,fullName,password,role,organizationId,permissions:perms});
       await A.writeAudit('central-user-created',{targetUserId:id,organizationId});
-      document.querySelector('#newUserName').value=''; document.querySelector('#newUserFullName').value=''; document.querySelector('#newUserPassword').value=''; document.querySelector('#newUserCompany').value='';
+      document.querySelector('#newUserName').value=''; document.querySelector('#newUserFullName').value=''; document.querySelector('#newUserPassword').value=''; document.querySelector('#newUserCompany').value=''; document.querySelector('#newUserRole').value='staff';
       A.toast('Central user '+id+' registered for '+body.organizationName+'.');
       if(typeof window.MukorobRefreshUsers==='function') window.MukorobRefreshUsers();
     } catch(e){ console.error(e); A.toast(e.message||'Could not register central user.'); }
