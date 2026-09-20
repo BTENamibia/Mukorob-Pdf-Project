@@ -71,20 +71,29 @@ function installMobileTouchZoom(){
   const pages=$('#pagesContainer');
   if(!pages||pages.dataset.touchZoomInstalled)return;
   pages.dataset.touchZoomInstalled='1';
-  let pinchStart=0, scaleStart=1, active=false;
+  let pinchStart=0, scaleStart=1, active=false, lastApplied=1, raf=0, pending=1;
   const distance=(a,b)=>Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);
   pages.addEventListener('touchstart',e=>{
     if(e.touches.length===2){
-      active=true; pinchStart=distance(e.touches[0],e.touches[1]); scaleStart=state.scale;
+      active=true; pinchStart=distance(e.touches[0],e.touches[1]); scaleStart=state.scale; lastApplied=scaleStart; pending=scaleStart;
+      if(raf){cancelAnimationFrame(raf);raf=0;}
     }
   },{passive:false});
   pages.addEventListener('touchmove',e=>{
     if(!active||e.touches.length!==2)return;
     e.preventDefault();
     const d=distance(e.touches[0],e.touches[1]);
-    if(pinchStart>0) setScale(scaleStart*(d/pinchStart));
+    if(pinchStart<=0)return;
+    pending=Math.min(4,Math.max(.3,scaleStart*(d/pinchStart)));
+    if(Math.abs(pending-lastApplied)<0.035)return;
+    if(!raf){
+      raf=requestAnimationFrame(()=>{raf=0;lastApplied=pending;setScale(pending);});
+    }
   },{passive:false});
-  const end=()=>{active=false;pinchStart=0;};
+  const end=()=>{
+    if(active && Math.abs(state.scale-pending)>0.01) setScale(pending);
+    active=false;pinchStart=0;if(raf){cancelAnimationFrame(raf);raf=0;}
+  };
   pages.addEventListener('touchend',end,{passive:true});
   pages.addEventListener('touchcancel',end,{passive:true});
 }
@@ -1913,10 +1922,14 @@ async function restoreSession(){
     return true;
   }catch(_){return false;}
 }
-function logoutUser(){
-  if(state.auth.user) writeAudit('logout', { userId: state.auth.user.id });
-  localStorage.removeItem(MUKOROB_SESSION_KEY); state.auth.user=null; state.auth.session=null;
-  if(state.pdfDoc) closeDocument();
+async function logoutUser(){
+  const oldUser=state.auth.user;
+  if(oldUser) await writeAudit('logout', { userId: oldUser.id });
+  localStorage.removeItem(MUKOROB_SESSION_KEY);
+  localStorage.removeItem('mukorob-central-user');
+  try { if(window.MukorobSupabase?.client && oldUser?.authProvider==='supabase') await window.MukorobSupabase.client.auth.signOut({scope:'local'}); } catch(e) { console.warn('[Mukorob logout]',e); }
+  state.auth.user=null; state.auth.session=null;
+  if(state.pdfDoc) await closeDocument();
   $('#panelRecent').innerHTML=''; $('#recentEmptyList').innerHTML=''; updateAuthUI(); showAuth('login');
 }
 
@@ -1927,13 +1940,22 @@ function showAuth(view){
 }
 function updateAuthUI(){
   const u=state.auth.user;
-  $('#currentUserBadge').textContent=u ? (u.role==='superadmin'?'SUPER ADMIN':u.fullName||u.id) : '';
+  const displayName=u ? (u.role==='superadmin' ? (u.fullName || 'Super Admin') : (u.fullName || u.id)) : '';
+  const company=u?.organizationName || '';
+  $('#currentUserBadge').textContent=displayName;
   $('#currentUserBadge').hidden=!u;
   $('#btnLogout').hidden=!u;
   if($('#btnLoginTop')) $('#btnLoginTop').hidden=!!u;
   if($('#toolLogin')) $('#toolLogin').hidden=!!u;
+  if($('#toolLogout')) $('#toolLogout').hidden=!u;
   if($('#btnAdmin')) $('#btnAdmin').hidden=!u || u.role!=='superadmin';
   if($('#toolAdmin')) $('#toolAdmin').hidden=!u || u.role!=='superadmin';
+  const bar=$('#identityBar');
+  if(bar){
+    $('#identityUser').textContent=u ? (u.role==='superadmin' ? 'SUPER ADMIN · '+displayName : displayName+' · '+u.id) : '';
+    $('#identityCompany').textContent=company ? company+' - Internal Workplace' : (u ? 'Mukorob Internal Workplace' : '');
+    bar.hidden=!u;
+  }
   applyPermissionUI();
 }
 function applyPermissionUI(){
@@ -2276,7 +2298,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   $('#btnPrint').addEventListener('click',printOriginalPdf);
   $('#btnPrintMobile').addEventListener('click',printOriginalPdf);
   $('#btnPdfEdit').addEventListener('click',(e)=>{e.stopPropagation();if(requirePermission('edit')){$('#toolsMenu').hidden=false;}});
-  $('#btnLogout').addEventListener('click',logoutUser);
+  $('#btnLogout').addEventListener('click',()=>{ logoutUser(); });
 
   $('#btnLogin').addEventListener('click',async()=>{
     const ok=await loginUser($('#loginUser').value,$('#loginPassword').value);
