@@ -72,6 +72,8 @@
     </div>
   </header>
 
+  <div id="identityBar" hidden><span id="identityUser"></span><span class="identity-sep">•</span><span id="identityCompany"></span></div>
+
   <!-- staff notice ribbon (configurable) -->
   <div id="staffNotice" hidden></div>
 
@@ -308,6 +310,20 @@
           <button class="text-btn" id="btnCfgImport">Import config file</button>
           <input type="file" id="cfgImportInput" accept="application/json" hidden>
         </div>
+      </section>
+
+      <section id="companyManagementSection">
+        <h3>Companies / workspaces</h3>
+        <div id="companyList" class="user-list"></div>
+        <div class="user-form-grid company-form-grid">
+          <input id="newCompanyName" placeholder="Company / workspace name" autocomplete="off">
+          <input id="newCompanySector" placeholder="Sector / industry" autocomplete="off">
+        </div>
+        <div class="row-gap">
+          <button class="primary-btn" id="btnCreateCompany">Register company</button>
+          <button class="text-btn" id="btnRefreshCompanies">Refresh companies</button>
+        </div>
+        <p class="hint">Super Admin can register or remove companies here. A company with active users cannot be deleted until those users are reassigned or removed.</p>
       </section>
 
       <section id="userManagementSection">
