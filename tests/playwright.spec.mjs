@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 const baseURL = process.env.MUKOROB_BASE_URL || 'http://127.0.0.1:4173';
 
-test.describe('Mukorob PDF v0.7.4 smoke flows', () => {
+test.describe('Mukorob PDF v0.7.5 smoke flows', () => {
   test('loads the branded shell and exposes core controls', async ({ page }) => {
     await page.goto(baseURL); await expect(page).toHaveTitle(/Mukorob PDF/);
     await expect(page.locator('#btnOpen')).toHaveCount(1);
