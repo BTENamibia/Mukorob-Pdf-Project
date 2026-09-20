@@ -523,3 +523,20 @@ button:focus-visible,input:focus-visible,a:focus-visible,[tabindex]:focus-visibl
   #btnAdmin[hidden]{display:none!important}
   #btnLoginTop{order:-19!important}
 }
+
+
+/* v0.7.7 stability: identity and logout must remain visible on every form factor. */
+#identityBar{display:flex;align-items:center;justify-content:center;gap:8px;min-height:28px;padding:5px 12px;background:var(--surface);border-bottom:1px solid var(--border);color:var(--text);font-size:11px;font-weight:700;letter-spacing:.15px;z-index:20}
+#identityBar[hidden]{display:none!important}
+#identityUser{color:var(--text)}#identityCompany{color:var(--primary)}.identity-sep{color:var(--text-dim)}
+@media(max-width:900px){#identityBar{font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.user-badge{display:none!important}}
+@media(max-width:720px){
+  #topbar .topbar-actions{overflow-x:auto;overflow-y:hidden;flex-wrap:nowrap}
+  #topbar #btnLogout{display:flex!important;order:-18!important;flex:0 0 auto!important}
+  #topbar #btnLoginTop{order:-17!important;flex:0 0 auto!important}
+  #topbar #btnTools{order:20!important;flex:0 0 auto!important}
+  #topbar #btnTheme{display:flex!important;order:21!important;flex:0 0 auto!important}
+  #topbar #btnAdmin{order:-20!important;flex:0 0 auto!important}
+  #topbar #btnLogout[hidden],#topbar #btnLoginTop[hidden],#topbar #btnAdmin[hidden]{display:none!important}
+  .company-form-grid{grid-template-columns:1fr!important}
+}
