@@ -496,7 +496,7 @@ button:focus-visible,input:focus-visible,a:focus-visible,[tabindex]:focus-visibl
 /* ===== Mukorob PDF v0.7 ===== */
 .autosave-status{font-size:10px;color:var(--text-dim);margin-left:8px;white-space:nowrap}
 #pagesContainer.placing-annotation .annot-layer{cursor:crosshair!important}
-.v07-annotation-control{position:absolute;z-index:20;border:1px solid transparent;border-radius:6px;box-sizing:border-box;cursor:move;touch-action:none;user-select:none;background:rgba(226,163,33,.035)}
+.v07-annotation-control{position:absolute;z-index:20;pointer-events:auto;border:1px solid transparent;border-radius:6px;box-sizing:border-box;cursor:move;touch-action:none;user-select:none;background:rgba(226,163,33,.035)}
 .v07-annotation-control.selected{border-color:var(--accent);box-shadow:0 0 0 2px rgba(226,163,33,.18)}
 .v07-annotation-control img{width:100%;height:100%;object-fit:contain;display:block;pointer-events:none}
 .v07-signature-visual{width:100%;height:100%;display:flex;align-items:center;padding:0 6px;font-family:cursive;font-style:italic;font-weight:700;font-size:clamp(16px,2.2vw,34px);white-space:nowrap;overflow:hidden;pointer-events:none}
