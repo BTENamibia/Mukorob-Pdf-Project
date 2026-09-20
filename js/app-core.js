@@ -1038,49 +1038,62 @@ async function exportAnnotatedPdf() {
     const { PDFDocument, rgb } = PDFLib;
     const pdfDoc = await PDFDocument.load(state.fileBytesForExport);
     const pages = pdfDoc.getPages();
+    const annotationGeometry = window.MukorobAnnotations;
+    const normalizedToPdfPoints = annotationGeometry?.normalizedToPdfPoints || ((r,W,H) => ({
+      x:r.x*W, y:(1-r.y-r.h)*H, w:r.w*W, h:r.h*H
+    }));
+    const imageCache = new Map();
 
     for (const a of state.annotations) {
       const page = pages[a.page - 1];
-      if (!page) return;
+      if (!page) continue;
       const { width, height } = page.getSize();
-      const col = hexToRgbFloat(a.color);
+      const col = hexToRgbFloat(a.color || '#0B4F8A');
+      const rotation = Number(state.pageRotations?.get(a.page) || 0);
+      const box = normalizedToPdfPoints(a.rect, width, height, rotation);
 
       if (a.type === 'highlight') {
         page.drawRectangle({
-          x: a.rect.x * width,
-          y: height - (a.rect.y + a.rect.h) * height,
-          width: a.rect.w * width,
-          height: a.rect.h * height,
-          color: rgb(col.r, col.g, col.b),
-          opacity: 0.35,
+          x: box.x, y: box.y, width: box.w, height: box.h,
+          color: rgb(col.r, col.g, col.b), opacity: 0.35,
         });
       } else if (a.type === 'ink') {
         for (let i = 1; i < a.points.length; i++) {
-          const p0 = a.points[i - 1];
-          const p1 = a.points[i];
+          const p0 = a.points[i - 1], p1 = a.points[i];
           page.drawLine({
             start: { x: p0.x * width, y: height - p0.y * height },
             end: { x: p1.x * width, y: height - p1.y * height },
-            thickness: 2,
-            color: rgb(col.r, col.g, col.b),
+            thickness: 2, color: rgb(col.r, col.g, col.b),
           });
         }
       } else if (a.type === 'signature') {
         const font = await pdfDoc.embedFont(PDFLib.StandardFonts.HelveticaOblique);
         page.drawText(a.text || 'Signature', {
-          x: a.rect.x * width, y: height - (a.rect.y + a.rect.h * 0.78) * height,
-          size: Math.max(10, a.rect.h * height * 0.72), font, color: rgb(col.r,col.g,col.b)
+          x: box.x,
+          y: box.y + box.h * 0.22,
+          size: Math.max(10, box.h * 0.72),
+          font,
+          color: rgb(col.r, col.g, col.b),
         });
+      } else if (a.type === 'stamp' && a.src) {
+        let image = imageCache.get(a.src);
+        if (!image) {
+          const match = String(a.src).match(/^data:(image\\/(?:png|jpeg|jpg));base64,(.+)$/i);
+          if (!match) continue;
+          const bytes = Uint8Array.from(atob(match[2]), c => c.charCodeAt(0));
+          image = /^image\\/png$/i.test(match[1])
+            ? await pdfDoc.embedPng(bytes)
+            : await pdfDoc.embedJpg(bytes);
+          imageCache.set(a.src, image);
+        }
+        page.drawImage(image, { x: box.x, y: box.y, width: box.w, height: box.h });
       } else if (a.type === 'note') {
         const x = a.rect.x * width;
         const y = height - a.rect.y * height;
         page.drawRectangle({ x, y: y - 10, width: 10, height: 10, color: rgb(col.r, col.g, col.b) });
         if (a.text) {
           page.drawText(a.text.slice(0, 90), {
-            x: x + 14,
-            y: y - 10,
-            size: 8,
-            color: rgb(col.r, col.g, col.b),
+            x: x + 14, y: y - 10, size: 8, color: rgb(col.r, col.g, col.b),
           });
         }
       }
@@ -1089,10 +1102,10 @@ async function exportAnnotatedPdf() {
     const bytes = await pdfDoc.save();
     const blob = new Blob([bytes], { type: 'application/pdf' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = state.fileName.replace(/\.pdf$/i, '') + ' (annotated).pdf';
-    a.click();
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = state.fileName.replace(/\\.pdf$/i, '') + ' (annotated).pdf';
+    link.click();
     URL.revokeObjectURL(url);
     toast('Annotated copy downloaded.');
   } catch (err) {
