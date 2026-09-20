@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 const baseURL = process.env.MUKOROB_BASE_URL || 'http://127.0.0.1:4173';
 
-test.describe('Mukorob PDF v0.7.1 smoke flows', () => {
+test.describe('Mukorob PDF v0.7.4 smoke flows', () => {
   test('loads the branded shell and exposes core controls', async ({ page }) => {
     await page.goto(baseURL); await expect(page).toHaveTitle(/Mukorob PDF/);
     await expect(page.locator('#btnOpen')).toHaveCount(1);
@@ -15,10 +15,9 @@ test.describe('Mukorob PDF v0.7.1 smoke flows', () => {
     const source = await page.locator('body').evaluate(() => document.documentElement.outerHTML);
     expect(source).not.toContain('window.open(');
   });
-  test('v0.7.1 migration module and test hooks are wired', async ({ page }) => {
+  test('v0.7.4 migration module and test hooks are wired', async ({ page }) => {
     await page.goto(baseURL);
     expect(await page.evaluate(() => window.MukorobTestHooks?.version)).toBe('0.7.1');
-    // The migration UI is created after the application boot sequence. Wait for it rather than racing boot.
     await expect(page.locator('#mkMigrationPanel')).toHaveCount(1, {timeout:10000});
     await expect(page.locator('#mkFirstRunRestore')).toHaveCount(1, {timeout:10000});
   });
