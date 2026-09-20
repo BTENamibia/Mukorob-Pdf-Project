@@ -1,69 +1,75 @@
+function getViewportCurrentPage() {
+  if (!state.pdfDoc || !state.pageEls.length) return state.currentPage || 1;
+  const viewer = $('#viewer');
+  if (!viewer) return state.currentPage || 1;
+  const vr = viewer.getBoundingClientRect();
+  const centerY = vr.top + vr.height / 2;
+  let bestPage = state.currentPage || 1;
+  let bestDistance = Infinity;
+  state.pageEls.forEach((p, index) => {
+    if (!p?.wrap) return;
+    const r = p.wrap.getBoundingClientRect();
+    if (r.bottom <= vr.top || r.top >= vr.bottom) return;
+    const distance = Math.abs((r.top + r.height / 2) - centerY);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      bestPage = index + 1;
+    }
+  });
+  return bestPage;
+}
+
+function syncCurrentPageFromViewport() {
+  const page = getViewportCurrentPage();
+  if (page !== state.currentPage) {
+    state.currentPage = page;
+    updatePageIndicator();
+    highlightCurrentThumb();
+  }
+  return page;
+}
+
 function setupObserver() {
   if (state.observer) state.observer.disconnect();
   const viewer = $('#viewer');
-
-  // The IntersectionObserver callback can contain several pages at once when
-  // the viewer is scrolled quickly. Taking the last entry as "current" made
-  // rotation act on a neighbouring page rather than the page actually under
-  // the user's viewport. Current page is therefore derived from the page
-  // whose centre is closest to the viewer's visible centre.
-  function updateCurrentPageFromViewport() {
-    if (!viewer || !state.pageEls.length) return;
-    const vr = viewer.getBoundingClientRect();
-    const centerY = vr.top + vr.height / 2;
-    let bestPage = state.currentPage || 1;
-    let bestDistance = Infinity;
-
-    state.pageEls.forEach((p, index) => {
-      const r = p.wrap.getBoundingClientRect();
-      if (r.bottom <= vr.top || r.top >= vr.bottom) return;
-      const pageCenter = r.top + r.height / 2;
-      const distance = Math.abs(pageCenter - centerY);
-      if (distance < bestDistance) {
-        bestDistance = distance;
-        bestPage = index + 1;
-      }
-    });
-
-    if (bestPage !== state.currentPage) {
-      state.currentPage = bestPage;
-      updatePageIndicator();
-      highlightCurrentThumb();
-    }
-  }
-
-  state._updateCurrentPageFromViewport = updateCurrentPageFromViewport;
+  if (!viewer) return;
 
   state.observer = new IntersectionObserver(
     (entries) => {
       entries.forEach((entry) => {
         const pageNum = Number(entry.target.dataset.page);
-        if (entry.isIntersecting) {
-          renderPage(pageNum);
-        } else {
-          unrenderPage(pageNum);
-        }
+        if (entry.isIntersecting) renderPage(pageNum);
+        else unrenderPage(pageNum);
       });
-      updateCurrentPageFromViewport();
+      syncCurrentPageFromViewport();
     },
     { root: viewer, rootMargin: '1200px 0px 1200px 0px', threshold: [0, 0.5] }
   );
 
   state.pageEls.forEach((p) => state.observer.observe(p.wrap));
 
-  // Keep the active page synchronized continuously while the user scrolls.
-  // This is the value used by rotate, delete, annotate, sign and stamp tools.
   if (state._pageScrollHandler) viewer.removeEventListener('scroll', state._pageScrollHandler);
   let scrollTimer = null;
   state._pageScrollHandler = () => {
     if (scrollTimer) return;
     scrollTimer = requestAnimationFrame(() => {
       scrollTimer = null;
-      updateCurrentPageFromViewport();
+      syncCurrentPageFromViewport();
     });
   };
   viewer.addEventListener('scroll', state._pageScrollHandler, { passive: true });
-  updateCurrentPageFromViewport();
+
+  state.pageEls.forEach((p, index) => {
+    if (p.wrap.dataset.currentPageWired) return;
+    p.wrap.dataset.currentPageWired = '1';
+    p.wrap.addEventListener('pointerdown', () => {
+      state.currentPage = index + 1;
+      updatePageIndicator();
+      highlightCurrentThumb();
+    }, { passive: true });
+  });
+
+  syncCurrentPageFromViewport();
 }
 
 async function renderPage(pageNum, force = false) {
