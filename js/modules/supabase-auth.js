@@ -149,14 +149,63 @@
     }
   }
 
-  function addCompanySelector() {
-    const form = document.querySelector('#userManagementSection .user-form-grid');
-    if (!form || document.querySelector('#newUserCompany')) return;
-    const select = document.createElement('select');
-    select.id = 'newUserCompany';
-    select.innerHTML = '<option value="">Select pilot company</option><option value="d0f9d41e-fe8a-4760-991c-bc56eca04411">Hydraform Interlocking Solutions CC</option><option value="95ea4b45-53b1-4e2c-b9da-a9ec2a3fd758">Stratsure Insurance (Pty) Ltd.</option>';
-    select.title = 'Company';
-    form.appendChild(select);
+  async function centralRequest(body) {
+    const {data:sessionData} = await client.auth.getSession();
+    if (!sessionData.session) throw new Error('Super Admin session is not available.');
+    const res = await fetch(SUPABASE_URL + '/functions/v1/mukorob-admin', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+sessionData.session.access_token,'apikey':SUPABASE_KEY},
+      body:JSON.stringify(body)
+    });
+    const payload=await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(payload.error || 'Mukorob central administration request failed.');
+    return payload;
+  }
+
+  async function refreshCompanies() {
+    if(!client || A.state.auth.user?.role!=='superadmin') return [];
+    try {
+      const body=await centralRequest({action:'list_companies'});
+      const companies=body.companies||[];
+      const box=document.querySelector('#companyList');
+      const select=document.querySelector('#newUserCompany');
+      if(select){
+        select.innerHTML='<option value="">Select company / workplace</option>';
+        for(const org of companies){
+          const o=document.createElement('option'); o.value=org.id; o.textContent=org.name; select.appendChild(o);
+        }
+      }
+      if(box){
+        box.innerHTML='';
+        for(const org of companies){
+          const row=document.createElement('div'); row.className='user-row';
+          const active=org.status==='active';
+          row.innerHTML='<div><strong>'+String(org.name).replace(/[&<>]/g,'')+'</strong><span>'+String(org.sector||'General').replace(/[&<>]/g,'')+' · '+(active?'ACTIVE':'INACTIVE')+'</span></div>';
+          const actions=document.createElement('div'); actions.className='user-actions';
+          const del=document.createElement('button'); del.className='text-btn danger'; del.textContent='Delete'; del.title='Delete company';
+          del.addEventListener('click',async()=>{ if(!confirm('Delete '+org.name+'? This cannot be undone.')) return; try{A.toast('Deleting company…'); await centralRequest({action:'delete_company',organizationId:org.id}); A.toast('Company deleted.'); await refreshCompanies();}catch(e){A.toast(e.message||'Could not delete company.');} });
+          actions.appendChild(del); row.appendChild(actions); box.appendChild(row);
+        }
+      }
+      return companies;
+    } catch(e) {
+      console.warn('[Mukorob companies]',e);
+      return [];
+    }
+  }
+
+  async function createCompany() {
+    const name=document.querySelector('#newCompanyName')?.value.trim();
+    const sector=document.querySelector('#newCompanySector')?.value.trim() || 'General';
+    if(!name) return A.toast('Enter a company / workplace name.');
+    try{
+      A.toast('Registering company…');
+      await centralRequest({action:'create_company',name,sector});
+      document.querySelector('#newCompanyName').value='';
+      document.querySelector('#newCompanySector').value='';
+      await refreshCompanies();
+      A.toast('Company registered.');
+    }catch(e){ A.toast(e.message||'Could not register company.'); }
   }
 
 
@@ -183,34 +232,24 @@
     const password = document.querySelector('#newUserPassword')?.value;
     const organizationId = document.querySelector('#newUserCompany')?.value;
     const perms = {};
-    document.querySelectorAll('#permissionChecks input').forEach(c => perms[c.dataset.permission] = c.checked);
+    document.querySelectorAll('#permissionChecks input').forEach(c=>perms[c.dataset.permission]=c.checked);
     if (!id || !fullName || !password || !organizationId) return A.toast('User ID, staff name, temporary password and company are required.');
     try {
       A.toast('Registering central Mukorob user…');
-      const {data: sessionData} = await client.auth.getSession();
-      if (!sessionData.session) throw new Error('Super Admin session is not available.');
-      const res = await fetch(SUPABASE_URL + '/functions/v1/mukorob-admin', {
-        method:'POST',
-        headers:{'Content-Type':'application/json','Authorization':'Bearer '+sessionData.session.access_token,'apikey':SUPABASE_KEY},
-        body:JSON.stringify({action:'create_user',userId:id,fullName,password,organizationId,permissions:perms})
-      });
-      const body = await res.json();
-      if (!res.ok) throw new Error(body.error || 'Central user registration failed.');
+      const body=await centralRequest({action:'create_user',userId:id,fullName,password,organizationId,permissions:perms});
       await A.writeAudit('central-user-created',{targetUserId:id,organizationId});
-      document.querySelector('#newUserName').value='';
-      document.querySelector('#newUserFullName').value='';
-      document.querySelector('#newUserPassword').value='';
-      document.querySelector('#newUserCompany').value='';
+      document.querySelector('#newUserName').value=''; document.querySelector('#newUserFullName').value=''; document.querySelector('#newUserPassword').value=''; document.querySelector('#newUserCompany').value='';
       A.toast('Central user '+id+' registered for '+body.organizationName+'.');
-      if (typeof window.MukorobRefreshUsers === 'function') window.MukorobRefreshUsers();
-    } catch (e) {
-      console.error(e);
-      A.toast(e.message || 'Could not register central user.');
-    }
+      if(typeof window.MukorobRefreshUsers==='function') window.MukorobRefreshUsers();
+    } catch(e){ console.error(e); A.toast(e.message||'Could not register central user.'); }
   }
 
   function interceptUI() {
-    addCompanySelector();
+    const form = document.querySelector('#userManagementSection .user-form-grid');
+    if(form && !document.querySelector('#newUserCompany')){
+      const select=document.createElement('select'); select.id='newUserCompany'; select.title='Company / workplace';
+      form.appendChild(select);
+    }
     const create = document.querySelector('#btnCreateUser');
     if (create && !create.dataset.centralAuth) {
       create.dataset.centralAuth='1';
@@ -222,14 +261,17 @@
         provisionUser();
       }, true);
     }
+    const createCompanyBtn=document.querySelector('#btnCreateCompany');
+    if(createCompanyBtn && !createCompanyBtn.dataset.centralAuth){ createCompanyBtn.dataset.centralAuth='1'; createCompanyBtn.addEventListener('click',e=>{e.preventDefault();e.stopImmediatePropagation();createCompany();},true); }
+    const refreshCompaniesBtn=document.querySelector('#btnRefreshCompanies');
+    if(refreshCompaniesBtn && !refreshCompaniesBtn.dataset.centralAuth){ refreshCompaniesBtn.dataset.centralAuth='1'; refreshCompaniesBtn.addEventListener('click',e=>{e.preventDefault();e.stopImmediatePropagation();refreshCompanies();},true); }
     const logout = document.querySelector('#btnLogout');
     if (logout && !logout.dataset.centralAuth) {
       logout.dataset.centralAuth='1';
       logout.addEventListener('click', e => {
         if (A.state.auth.user?.authProvider !== 'supabase') return;
-        e.stopImmediatePropagation();
-        e.preventDefault();
-        centralLogout();
+        e.stopImmediatePropagation(); e.preventDefault();
+        centralLogout().catch(err=>{console.warn('[Mukorob central logout]',err); A.state.auth.user=null; A.state.auth.session=null; A.updateZoomControls(); window.dispatchEvent(new CustomEvent('mukorob:auth-changed',{detail:{user:null}}));});
       }, true);
     }
   }
@@ -257,6 +299,7 @@
   }, true);
 
   window.MukorobRefreshUsers = refreshCentralUsers;
+  window.MukorobRefreshCompanies = refreshCompanies;
   window.MukorobSupabase = {client, centralLogin, centralLogout, restoreCentral, provisionUser, refreshCentralUsers};
 
   const boot = async () => {
@@ -265,6 +308,7 @@
     await restoreCentral();
     interceptUI();
     refreshCentralUsers();
+    refreshCompanies();
     const userList=document.querySelector('#userList');
     if(userList && !userList.dataset.centralObserver){
       userList.dataset.centralObserver='1';
