@@ -73,26 +73,56 @@
 
   async function centralLogin(id, password) {
     const normalized = A.normalizeId(id);
-    let { data, error } = await client.auth.signInWithPassword({email: centralEmail(normalized), password});
-    if (error) {
-      // One-time migration path: validate the existing local credential, then create
-      // the central Supabase Auth identity. Password hashes are never copied.
+
+    // v0.7.4 safety fix:
+    // Do NOT call auth.signUp() as an automatic fallback from the login screen.
+    // That path can trigger Supabase email/rate limits and, with hosted email
+    // confirmation enabled, it cannot create a usable internal session anyway.
+    // Existing Bradz/Mukorob local accounts must remain usable while the central
+    // identity migration is being completed.
+    let { data, error } = await client.auth.signInWithPassword({
+      email: centralEmail(normalized),
+      password
+    });
+
+    if (!error && data?.user) {
+      const bundle = await profileFor(data.user.id);
       const local = await A.getUser(normalized);
-      if (!local || local.disabled) throw error;
-      const localHash = await A.hashPassword(password, local.passwordSalt);
-      if (localHash !== local.passwordHash) throw error;
-      const signup = await client.auth.signUp({email: centralEmail(normalized), password, options:{data:{mukorob_user_id:normalized,full_name:local.fullName}}});
-      if (signup.error) throw signup.error;
-      if (!signup.data.session || !signup.data.user) {
-        throw new Error('Central account created, but Supabase email confirmation is required. Disable email confirmation for this internal pilot or configure a real recovery email.');
-      }
-      data = signup.data;
+      const profile = await ensureProfile(data.user, local);
+      applyCentralIdentity(data.user, profile, bundle.memberships);
+      await A.writeAudit('central-login', {userId: normalized});
+      return true;
     }
-    const bundle = await profileFor(data.user.id);
-    const profile = await ensureProfile(data.user, await A.getUser(normalized));
-    applyCentralIdentity(data.user, profile, bundle.memberships);
-    await A.writeAudit('central-login', {userId: normalized});
-    return true;
+
+    // Safe local-first fallback for accounts that have not yet been provisioned
+    // in Supabase Auth. This deliberately avoids signUp(), so a login attempt
+    // cannot consume the Auth email rate limit.
+    const local = await A.getUser(normalized);
+    if (local && !local.disabled) {
+      const localHash = await A.hashPassword(password, local.passwordSalt);
+      if (localHash === local.passwordHash) {
+        A.state.auth.user = local;
+        A.state.auth.session = crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + '-' + Math.random();
+        localStorage.setItem('mukorob-pdf-session-v1', JSON.stringify({
+          id: local.id,
+          token: A.state.auth.session,
+          createdAt: Date.now()
+        }));
+        local.lastLoginAt = Date.now();
+        await A.db.put('users', local);
+        await A.writeAudit('login-local-fallback', {
+          userId: normalized,
+          centralAuthStatus: error?.message || 'central-account-not-provisioned'
+        });
+        A.updateZoomControls();
+        window.dispatchEvent(new CustomEvent('mukorob:auth-changed', {detail:{user:local}}));
+        return true;
+      }
+    }
+
+    // Preserve the real central error only after the local credential check has
+    // failed. No account creation or email is attempted here.
+    throw error || new Error('Invalid user ID or password.');
   }
 
   async function centralLogout() {
