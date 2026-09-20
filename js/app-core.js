@@ -834,7 +834,6 @@ function attachAnnotPointerHandlers(pageNum, layer) {
     } else if (state.activeTool === 'signature') {
       /* E-signature placement is owned exclusively by modules/annotations.js. */
     }
-    }
   });
 
   layer.addEventListener('pointermove', (e) => {
