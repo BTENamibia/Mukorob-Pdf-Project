@@ -129,6 +129,24 @@
     form.appendChild(select);
   }
 
+
+  async function refreshCentralUsers() {
+    if (!client || A.state.auth.user?.role !== 'superadmin') return;
+    const {data,error} = await client.from('profiles').select('id,user_id,full_name,role,active,organization_members(organization_id,permissions,active,organizations:organization_id(name))').order('user_id');
+    if (error) { console.warn('[Mukorob central users]', error); return; }
+    const box=document.querySelector('#userList'); if(!box) return;
+    box.innerHTML='';
+    for(const u of (data||[])) {
+      const memberships=(u.organization_members||[]).filter(m=>m.active);
+      const orgs=memberships.map(m=>m.organizations?.name).filter(Boolean).join(', ') || 'No company assigned';
+      const perms=memberships[0]?.permissions||{};
+      const count=Object.values(perms).filter(Boolean).length;
+      const row=document.createElement('div'); row.className='user-row';
+      row.innerHTML='<div><strong>'+String(u.full_name||u.user_id).replace(/[&<>]/g,'')+'</strong><span>'+String(u.user_id).replace(/[&<>]/g,'')+' · '+(u.role==='superadmin'?'Super Admin':count+' permissions')+' · '+String(orgs).replace(/[&<>]/g,'')+(u.active?'':' · DISABLED')+'</span></div>';
+      box.appendChild(row);
+    }
+  }
+
   async function provisionUser() {
     const id = A.normalizeId(document.querySelector('#newUserName')?.value);
     const fullName = document.querySelector('#newUserFullName')?.value.trim();
@@ -208,13 +226,24 @@
     }
   }, true);
 
-  window.MukorobSupabase = {client, centralLogin, centralLogout, restoreCentral, provisionUser};
+  window.MukorobRefreshUsers = refreshCentralUsers;
+  window.MukorobSupabase = {client, centralLogin, centralLogout, restoreCentral, provisionUser, refreshCentralUsers};
 
   const boot = async () => {
     try { await initSupabase(); } catch (e) { console.error('[Mukorob Supabase] client load failed', e); return; }
     interceptUI();
     await restoreCentral();
     interceptUI();
+    refreshCentralUsers();
+    const userList=document.querySelector('#userList');
+    if(userList && !userList.dataset.centralObserver){
+      userList.dataset.centralObserver='1';
+      const observer=new MutationObserver(()=>{
+        if(observer._busy || A.state.auth.user?.role!=='superadmin') return;
+        clearTimeout(observer._timer); observer._timer=setTimeout(()=>{ observer._busy=true; refreshCentralUsers().finally(()=>observer._busy=false); },300);
+      });
+      observer.observe(userList,{childList:true});
+    }
     if (!A.state.auth.user) {
       const modal=document.querySelector('#authModal');
       if (modal) modal.hidden=false;
