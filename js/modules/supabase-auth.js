@@ -2,11 +2,17 @@
    IndexedDB remains the offline cache; Supabase Auth is the cross-device identity. */
 (() => {
   const A = window.MukorobApp;
-  if (!A || !window.supabase) return;
+  if (!A) return;
 
   const SUPABASE_URL = 'https://bitxwbayqnwyblkwqspy.supabase.co';
   const SUPABASE_KEY = 'sb_publishable__qvhAyJ8t33Cwv9XbWh7ZQ_MD1yoPLf';
-  const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  let client = null;
+  async function initSupabase() {
+    if (window.supabase?.createClient) { client = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY); return client; }
+    const mod = await import('https://esm.sh/@supabase/supabase-js@2');
+    client = mod.createClient(SUPABASE_URL, SUPABASE_KEY);
+    return client;
+  }
   const CENTRAL_EMAIL_DOMAIN = 'users.mukorob.app';
 
   const centralEmail = (id) => String(id || '').trim().toLowerCase() + '@' + CENTRAL_EMAIL_DOMAIN;
@@ -205,6 +211,7 @@
   window.MukorobSupabase = {client, centralLogin, centralLogout, restoreCentral, provisionUser};
 
   const boot = async () => {
+    try { await initSupabase(); } catch (e) { console.error('[Mukorob Supabase] client load failed', e); return; }
     interceptUI();
     await restoreCentral();
     interceptUI();
