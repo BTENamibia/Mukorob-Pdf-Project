@@ -1078,10 +1078,10 @@ async function exportAnnotatedPdf() {
       } else if (a.type === 'stamp' && a.src) {
         let image = imageCache.get(a.src);
         if (!image) {
-          const match = String(a.src).match(/^data:(image\\/(?:png|jpeg|jpg));base64,(.+)$/i);
+          const match = String(a.src).match(/^data:(image[^;]+);base64,(.+)$/i);
           if (!match) continue;
           const bytes = Uint8Array.from(atob(match[2]), c => c.charCodeAt(0));
-          image = /^image\\/png$/i.test(match[1])
+          image = /^image\/png$/i.test(match[1])
             ? await pdfDoc.embedPng(bytes)
             : await pdfDoc.embedJpg(bytes);
           imageCache.set(a.src, image);
