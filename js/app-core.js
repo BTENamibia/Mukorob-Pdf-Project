@@ -1942,6 +1942,7 @@ function updateAuthUI(){
   const u=state.auth.user;
   const displayName=u ? (u.role==='superadmin' ? (u.fullName || 'Super Admin') : (u.fullName || u.id)) : '';
   const company=u?.organizationName || '';
+  const workspaceCompany=company.replace(/\s+CC$/i,'').replace(/\s+\(Pty\)\s+Ltd\.?$/i,'');
   $('#currentUserBadge').textContent=displayName;
   $('#currentUserBadge').hidden=!u;
   $('#btnLogout').hidden=!u;
@@ -1953,7 +1954,7 @@ function updateAuthUI(){
   const bar=$('#identityBar');
   if(bar){
     $('#identityUser').textContent=u ? (u.role==='superadmin' ? 'SUPER ADMIN · '+displayName : displayName+' · '+u.id) : '';
-    $('#identityCompany').textContent=company ? company+' - Internal Workplace' : (u ? 'Mukorob Internal Workplace' : '');
+    $('#identityCompany').textContent=workspaceCompany ? workspaceCompany+' - Internal Workplace' : (u ? 'Mukorob Internal Workplace' : '');
     bar.hidden=!u;
   }
   applyPermissionUI();
