@@ -47,7 +47,7 @@ Set-ItemProperty -Path 'HKCU:\Software\Classes\.pdf' -Name '(default)' -Value 'M
 # Uninstall entry for this-user installation.
 New-Item -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\MukorobPDF' -Force|Out-Null
 Set-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\MukorobPDF' -Name DisplayName -Value 'Mukorob PDF'
-Set-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\MukorobPDF' -Name DisplayVersion -Value '0.7.6'
+Set-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\MukorobPDF' -Name DisplayVersion -Value '0.7.7'
 Set-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\MukorobPDF' -Name Publisher -Value 'Bradz Trading Enterprises CC'
 Set-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\MukorobPDF' -Name UninstallString -Value ('powershell.exe -NoProfile -ExecutionPolicy Bypass -File "'+(Join-Path $dest 'uninstall.ps1')+'"')
 
