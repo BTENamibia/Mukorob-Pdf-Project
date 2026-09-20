@@ -22,7 +22,7 @@ const normalizedToPdfPoints = (rect,W,H,rotation=0) => {
 /* Dragging by +10%/+5% changes only the target annotation geometry. */
 const before=normalRect({x:.20,y:.30,w:.30,h:.10});
 const moved=normalRect({x:before.x+.10,y:before.y+.05,w:before.w,h:before.h});
-assert.deepEqual(moved,{x:.30,y:.35,w:.30,h:.10});
+assert.ok(Math.abs(moved.x-.30)<1e-12 && Math.abs(moved.y-.35)<1e-12 && moved.w===.30 && moved.h===.10);
 
 /* Boundary safety clamps the top-left while preserving size. */
 assert.deepEqual(normalRect({x:.95,y:.98,w:.30,h:.10}),{x:.70,y:.90,w:.30,h:.10});
