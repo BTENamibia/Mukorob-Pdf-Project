@@ -517,6 +517,7 @@ button:focus-visible,input:focus-visible,a:focus-visible,[tabindex]:focus-visibl
 
 /* v0.7.6 UI regression guard: keep Super Admin settings and explicit sign-in reachable. */
 #btnLoginTop{display:flex}
+#btnLoginTop[hidden]{display:none!important}
 @media(max-width:720px){
   #btnAdmin{order:-20!important;display:flex!important}
   #btnAdmin[hidden]{display:none!important}
