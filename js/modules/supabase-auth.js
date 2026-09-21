@@ -180,8 +180,15 @@
   }
 
   async function centralRequest(body) {
-    const {data:sessionData} = await client.auth.getSession();
-    if (!sessionData.session) throw new Error('Super Admin session is not available.');
+    if (!client) throw new Error('Mukorob Central Administration is still loading. Please try again.');
+    let {data:sessionData} = await client.auth.getSession();
+    // Recover an expired/missing access token before reporting a false admin-session error.
+    if (!sessionData.session) {
+      const refreshed = await client.auth.refreshSession();
+      sessionData = refreshed.data;
+      if (refreshed.error) throw new Error('Your Super Admin central session could not be restored. Sign out and sign in again.');
+    }
+    if (!sessionData?.session) throw new Error('Central Super Admin is not initialized on this device. Sign in again to complete the one-time central setup.');
     const res = await fetch(SUPABASE_URL + '/functions/v1/mukorob-admin', {
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+sessionData.session.access_token,'apikey':SUPABASE_KEY},
@@ -235,7 +242,11 @@
       document.querySelector('#newCompanySector').value='';
       await refreshCompanies();
       A.toast('Company registered.');
-    }catch(e){ A.toast(e.message||'Could not register company.'); }
+    }catch(e){
+      console.error('[Mukorob company registration]',e);
+      const msg=e?.message || 'Could not register company.';
+      A.toast(msg);
+    }
   }
 
 
