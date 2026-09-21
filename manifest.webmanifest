@@ -16,7 +16,7 @@
     {"src":"icons/mukorob-icon.jpg","sizes":"512x512","type":"image/jpeg","purpose":"any"},
     {"src":"icons/mukorob-icon.jpg","sizes":"512x512","type":"image/jpeg","purpose":"maskable"}
   ],
-  "version": "0.7.8",
+  "version": "0.7.9",
   "shortcuts": [
     {"name":"Open PDF","short_name":"Open","url":"./index.html?new=1","icons":[{"src":"icons/mukorob-icon.jpg","sizes":"192x192"}]},
     {"name":"Mukorob PDF","short_name":"Mukorob","url":"./index.html","icons":[{"src":"icons/mukorob-icon.jpg","sizes":"192x192"}]}
