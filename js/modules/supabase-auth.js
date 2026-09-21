@@ -85,6 +85,39 @@
       password
     });
 
+    // The original Super Admin account predates Supabase central identity and
+    // therefore has no auth.users row. Bootstrap that one account once, using
+    // the same password the Super Admin just entered locally. This is deliberately
+    // limited to the existing local superadmin account and is never used for staff.
+    if (error) {
+      const localForBootstrap = await A.getUser(normalized);
+      const bootstrapKey = 'mukorob-central-superadmin-bootstrap-v1';
+      if (localForBootstrap?.role === 'superadmin' && !localStorage.getItem(bootstrapKey)) {
+        try {
+          const signup = await client.auth.signUp({
+            email: centralEmail(normalized),
+            password,
+            options: { data: { mukorob_user_id: normalized, full_name: localForBootstrap.fullName || 'Super Admin' } }
+          });
+          localStorage.setItem(bootstrapKey, 'attempted');
+          if (signup.data?.session?.user) {
+            data = signup.data;
+            error = null;
+          } else if (signup.data?.user && signup.data.user.id) {
+            // Hosted projects may require email confirmation. The internal
+            // @users.mukorob.app address cannot complete that flow, so fail
+            // clearly rather than silently falling back to a non-central admin.
+            throw new Error('Central Super Admin account was created, but Supabase requires email confirmation. Disable email confirmation for Mukorob internal accounts, then sign in again.');
+          } else if (signup.error) {
+            error = signup.error;
+          }
+        } catch (bootstrapError) {
+          console.warn('[Mukorob central Super Admin bootstrap]', bootstrapError);
+          if (bootstrapError?.message?.includes('email confirmation')) throw bootstrapError;
+        }
+      }
+    }
+
     if (!error && data?.user) {
       const bundle = await profileFor(data.user.id);
       const local = await A.getUser(normalized);
