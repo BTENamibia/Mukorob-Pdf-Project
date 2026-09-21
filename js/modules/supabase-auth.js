@@ -90,7 +90,7 @@
     // activation token is never stored in the application bundle.
     if (error) {
       const localForBootstrap = await A.getUser(normalized);
-      const bootstrapAttemptKey = 'mukorob-central-superadmin-bootstrap-v1';
+      const bootstrapAttemptKey = 'mukorob-central-superadmin-bootstrap-v2';
       if (localForBootstrap?.role === 'superadmin' && !localStorage.getItem(bootstrapAttemptKey)) {
         const bootstrapToken = window.prompt('Mukorob Central Admin activation code (one time):');
         if (bootstrapToken) {
