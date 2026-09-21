@@ -1,8 +1,8 @@
-# Mukorob PDF v0.7.4 — Bradz Internal Edition
+# Mukorob PDF v0.8.0 — Bradz Internal Edition
 
 Mukorob PDF is a local-first PDF Reader & Editor for Bradz Trading Enterprises CC (BTE Namibia), designed for controlled internal use.
 
-## v0.7.4 branding release
+## v0.8.0 branding and icon release
 
 - Added the modern horizontal **Mukorob PDF Reader & Editor** brand mark.
 - Added the icon-only Mukorob heritage emblem for app icons, PWA launchers, authentication and social/app contexts.
