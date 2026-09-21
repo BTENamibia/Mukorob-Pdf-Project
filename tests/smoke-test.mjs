@@ -4,7 +4,7 @@ import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 const root=path.resolve(new URL('..',import.meta.url).pathname);const read=p=>fs.readFileSync(path.join(root,p),'utf8');
 const app=read('js/app.js'),auth=read('js/modules/supabase-auth.js'),core=read('js/app-core.js'),db=read('js/db.js'),migration=read('js/modules/data-migration.js'),html=read('index.html'),sw=read('sw.js');
-assert.match(app,/modules\/supabase-auth\.js/);assert.match(auth,/SUPABASE_URL/);assert.match(auth,/centralLogin/);assert.match(auth,/mukorob-central-superadmin-bootstrap-v1/);assert.match(auth,/auth\.signUp/);assert.match(sw,/supabase-auth\.js/);
+assert.match(app,/modules\/supabase-auth\.js/);assert.match(auth,/SUPABASE_URL/);assert.match(auth,/centralLogin/);assert.match(auth,/mukorob-central-superadmin-bootstrap-v1/);assert.match(auth,/bootstrap_superadmin/);assert.doesNotMatch(auth,/auth\.signUp/);assert.match(sw,/supabase-auth\.js/);
 const manifest=JSON.parse(read('manifest.webmanifest')),version=read('VERSION.txt').trim();
 for(const file of ['js/app.js','js/app-core.js','js/db.js','js/modules/supabase-auth.js','js/modules/print.js','js/modules/annotations.js','js/modules/organizer.js','js/modules/autosave.js','js/modules/data-migration.js','js/modules/testing.js','js/modules/update-manager.js'])execFileSync('node',['--check',path.join(root,file)]);execFileSync('node',[path.join(root,'tests/annotation-geometry-test.mjs')]);
 for(const file of ['modules/data-migration.js','modules/supabase-auth.js','modules/print.js','modules/annotations.js','modules/organizer.js','modules/autosave.js','modules/testing.js','modules/v071-brand-auth.js','modules/update-manager.js'])assert.match(app,new RegExp(file.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')));
