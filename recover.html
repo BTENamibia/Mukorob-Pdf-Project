@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Repair Mukorob PDF update</title>
+<style>
+body{margin:0;background:#071b32;color:#f4f7fc;font:16px system-ui,sans-serif;min-height:100vh;display:grid;place-items:center;padding:20px;box-sizing:border-box}main{max-width:520px;background:#10273f;border:1px solid #314a63;border-radius:18px;padding:28px}img{width:64px;height:64px;border-radius:12px}h1{font-size:24px;margin-bottom:12px}p{line-height:1.6;color:#d2deeb}button{font:inherit;font-weight:700;background:#e2a321;color:#102030;border:0;border-radius:10px;padding:14px 18px;cursor:pointer}button:disabled{opacity:.65}footer{margin-top:24px;font-size:12px;color:#9aafc5}#status{min-height:50px}
+</style>
+</head>
+<body>
+<main>
+<img src="icons/mukorob-blue-192.png" alt="Mukorob PDF">
+<h1>Repair the Mukorob update</h1>
+<p>This repairs an update that keeps returning to the old version. Your saved users, PDFs, drafts, annotations and settings stay on this device.</p>
+<button id="repair">Repair and open Mukorob</button>
+<p id="status" role="status" aria-live="polite">Keep this page open until Mukorob reopens.</p>
+<footer>Developed by Bradz Trading Enterprises CC</footer>
+</main>
+<script>
+(() => {
+ const base = new URL('./',location.href);
+ const button = document.querySelector('#repair');
+ const status = document.querySelector('#status');
+ button.onclick = async () => {
+  button.disabled = true;
+  try {
+   status.textContent = 'Refreshing application files…';
+   // Remove only Mukorob application responses, never IndexedDB/localStorage,
+   // PDF files, unrelated app caches or previously cached third-party libraries.
+   for (const name of await caches.keys()) {
+    if (!name.startsWith('mukorob-pdf-')) continue;
+    const cache = await caches.open(name);
+    for (const request of await cache.keys()) {
+     const url = new URL(request.url);
+     if (url.origin !== base.origin || !url.pathname.startsWith(base.pathname)) continue;
+     const relative = url.pathname.slice(base.pathname.length);
+     if (!relative || /\.(?:html|js|mjs|css|txt|webmanifest|png|jpg|jpeg|svg|ico)$/.test(relative)) await cache.delete(request);
+    }
+   }
+   if ('serviceWorker' in navigator) {
+    for (const registration of await navigator.serviceWorker.getRegistrations()) {
+     // Script URLs with old version query strings share this same app scope.
+     if (registration.scope === base.href) await registration.unregister();
+    }
+   }
+   const destination = new URL('index.html',base);
+   destination.searchParams.set('mkRepair',Date.now());
+   status.textContent = 'Checking the updated app…';
+   const response = await fetch(destination.href,{cache:'no-store',signal:AbortSignal.timeout(20000)});
+   if (!response.ok) throw new Error('The app could not be downloaded. Check your internet connection and retry.');
+   const documentCopy = new DOMParser().parseFromString(await response.text(),'text/html');
+   const version = documentCopy.querySelector('meta[name="mukorob-version"]')?.content;
+   if (!version || version.localeCompare('0.9.1',undefined,{numeric:true}) < 0) {
+    throw new Error('This address is still returning the old app. Please copy its full address and send it to your developer.');
+   }
+   status.textContent = 'Update repaired. Opening Mukorob v' + version + '…';
+   location.replace(destination.href);
+  } catch (error) {
+   status.textContent = (error.name === 'TimeoutError' ? 'The download timed out. Check your connection and retry.' : error.message) + ' Your stored documents and settings have been kept.';
+   button.disabled = false;
+  }
+ };
+})();
+</script>
+</body>
+</html>

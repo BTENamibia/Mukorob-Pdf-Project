@@ -4,7 +4,7 @@ Mukorob PDF is a local-first PDF Reader & Editor for Bradz Trading Enterprises C
 
 ## v0.9.1 — update recovery
 
-Installed-app updates now wait for the replacement worker, checkpoint edits before reloading, and report retryable failures. Opening the app fetches fresh application files with an offline fallback. Existing browser data is retained. If a previous release keeps showing its update prompt, open the same site at `index.html?mkUpdate=0.9.1` in the browser used for that installation, then reopen the installed app.
+Installed-app updates now wait for the replacement worker, checkpoint edits before reloading, and report retryable failures. Opening the app fetches fresh application files with an offline fallback. Existing browser data is retained. If a previous release keeps showing its update prompt, open `recover.html` on the same site in the browser used for that installation, select **Repair and open Mukorob**, then reopen the installed app. The repair removes only Mukorob application responses and its worker registration; it preserves IndexedDB/localStorage, PDF files, unrelated caches and cached PDF libraries.
 
 ## v0.9.0 — official blue identity and document tools
 

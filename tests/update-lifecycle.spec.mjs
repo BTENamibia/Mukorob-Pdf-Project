@@ -7,14 +7,15 @@ function oldFile(file){
  const source=file==='sw.js'?'tests/fixtures/update-v080-sw.js':file==='js/modules/update-manager.js'?'tests/fixtures/update-v080-manager.js':file;
  try{return fs.readFileSync(path.join(root,source));}catch{return null;}
 }
-async function fixture(useNewUpdater=false){
- let deployed=false,latest='0.9.1',marker='0.9.1';
+async function fixture(useNewUpdater=false,stuckWorker=false){
+ let deployed=false,latest='0.9.1',marker='0.9.1',pinned=stuckWorker;
  const server=http.createServer((req,res)=>{
   const file=decodeURIComponent(new URL(req.url,'http://local').pathname).replace(/^\//,'')||'index.html';
   let body;
   if(file==='latest.txt') body=latest;
   else if(file==='index.html')body=`<!doctype html><head>${deployed?'<meta name="mukorob-version" content="0.9.1">':''}</head><body><h1>${deployed?marker:'0.8.0'}</h1><script src="js/db.js"></script><script src="js/modules/update-manager.js"></script></body>`;
   else if(file==='VERSION.txt')body=deployed?'0.9.1':'0.8.0';
+  else if(file==='sw.js'&&pinned)body=oldFile(file).toString().replace(/,'https:[^']+'/g,'').replace('same&&UPDATE_FIRST.test(url.pathname)','false').replaceAll('caches.match(event.request)','caches.match(event.request,{ignoreSearch:true})').replace('keys.filter(k=>k!==CACHE_NAME)','keys.filter(k=>k.startsWith("mukorob-pdf-")&&k!==CACHE_NAME)');
   else {try{body=deployed?fs.readFileSync(path.join(root,file)):oldFile(file);}catch{}}
   if(body==null){res.writeHead(404);res.end();return;}
   if(file==='sw.js'&&!deployed)body=body.toString().replace(/,'https:[^']+'/g,'');
@@ -23,7 +24,7 @@ async function fixture(useNewUpdater=false){
   res.setHeader('Cache-Control','no-store');res.end(body);
  });
  await new Promise(resolve=>server.listen(0,'0.0.0.0',resolve));
- return {url:`http://127.0.0.2:${server.address().port}/`,deploy(){deployed=true;},marker(v){marker=v;},latest(v){latest=v;},close(){server.closeAllConnections();return new Promise(resolve=>server.close(resolve));}};
+ return {url:`http://127.0.0.2:${server.address().port}/`,deploy(){deployed=true;},releaseWorker(){pinned=false;},marker(v){marker=v;},latest(v){latest=v;},close(){server.closeAllConnections();return new Promise(resolve=>server.close(resolve));}};
 }
 async function seed(page){
  await page.evaluate(async()=>{
@@ -79,5 +80,29 @@ test('current updater activates a replacement worker and checkpoints edits befor
   await expect(page.locator('h1')).toHaveText('0.9.1',{timeout:35000});
   await expect(page.locator('#mkUpdatePanel')).toHaveCount(0);await preserved(page);
   expect(await page.evaluate(async()=>(await MukorobDB.get('drafts','update-checkpoint')).text)).toBe('Saved before reload');
+ }finally{await host.close();}
+});
+
+test('repair replaces a stuck legacy worker without deleting local records or cached PDF libraries',async({page,context})=>{
+ const host=await fixture(false,true);
+ try{
+  await page.goto(host.url);await page.waitForFunction(()=>navigator.serviceWorker.controller);
+  await seed(page);
+  await page.evaluate(async()=>{
+   const r=await navigator.serviceWorker.getRegistration();
+   await navigator.serviceWorker.register('./sw.js?v=old-install',{scope:r.scope});
+   const cache=await caches.open('mukorob-pdf-v0.8.0-central-admin-bootstrap');
+   await cache.put('https://cdnjs.cloudflare.com/cached-pdf-library.js',new Response('saved library'));
+  });
+  await page.waitForFunction(()=>navigator.serviceWorker.controller?.scriptURL.includes('v=old-install'));
+  await seed(page);
+  await page.evaluate(async()=>{const cache=await caches.open('mukorob-pdf-v0.8.0-central-admin-bootstrap');await cache.put(new URL('./index.html',location.href).href,new Response('<!doctype html>'+document.documentElement.outerHTML,{headers:{'Content-Type':'text/html'}}));});
+  host.deploy();
+  await page.goto(host.url+'index.html?mkUpdate=previous-retry');
+  await expect(page.locator('h1')).toHaveText('0.8.0');
+  host.releaseWorker();await page.goto(host.url+'recover.html');await page.locator('#repair').click();
+  await expect(page.locator('h1')).toHaveText('0.9.1');await preserved(page);
+  expect(await page.evaluate(async()=>!!(await caches.match('https://cdnjs.cloudflare.com/cached-pdf-library.js')))).toBe(true);
+  await page.reload();await expect(page.locator('h1')).toHaveText('0.9.1');
  }finally{await host.close();}
 });
