@@ -55,3 +55,21 @@ test('Save As exports signature and rotation; print uses the same edited documen
  const doc=await lib.PDFDocument.load(fs.readFileSync(await download.path()));expect(doc.getPage(0).getRotation().angle).toBe(90);expect(doc.getPage(0).node.Contents().size()).toBeGreaterThan(0);
  await page.evaluate(()=>window.MukorobPrint.printPdf());expect(await page.evaluate(()=>window.__printed)).toBe(true);await expect(page.locator('#mukorobPrintSurface img')).toHaveCount(2);
 });
+
+test('bundled PDF libraries open a document with external downloads blocked, including offline',async({page,context})=>{
+ const baseURL=process.env.MUKOROB_BASE_URL||'http://127.0.0.1:4173';
+ await page.route('https://cdnjs.cloudflare.com/**',route=>route.abort());
+ await page.goto(baseURL);
+ await page.waitForFunction(()=>window.MukorobTestHooks&&window.MukorobPdfEngine&&navigator.serviceWorker.controller);
+ expect(await page.evaluate(()=>pdfjsLib.GlobalWorkerOptions.workerSrc)).toBe('vendor/pdf.worker.min.js');
+ await context.setOffline(true);await page.reload();
+ await page.waitForFunction(()=>window.MukorobTestHooks&&window.MukorobPdfEngine);
+ await page.evaluate(async data=>{
+  const A=window.MukorobApp;A.state.auth.user={id:'offline-test',fullName:'Bradz test',role:'superadmin',permissions:{}};
+  document.querySelector('#authModal').hidden=true;document.querySelector('#accessGate').hidden=true;
+  await A.openFile(new File([new Uint8Array(data)],'Offline.pdf',{type:'application/pdf'}));
+ },Array.from(await fixture()));
+ await expect(page.locator('.pdf-page')).toHaveCount(2);
+ expect(await page.evaluate(()=>window.MukorobApp.state.pdfDoc.numPages)).toBe(2);
+ await context.setOffline(false);
+});

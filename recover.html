@@ -51,7 +51,7 @@ body{margin:0;background:#071b32;color:#f4f7fc;font:16px system-ui,sans-serif;mi
    if (!response.ok) throw new Error('The app could not be downloaded. Check your internet connection and retry.');
    const documentCopy = new DOMParser().parseFromString(await response.text(),'text/html');
    const version = documentCopy.querySelector('meta[name="mukorob-version"]')?.content;
-   if (!version || version.localeCompare('0.9.1',undefined,{numeric:true}) < 0) {
+   if (!version || version.localeCompare('0.9.2',undefined,{numeric:true}) < 0) {
     throw new Error('This address is still returning the old app. Please copy its full address and send it to your developer.');
    }
    status.textContent = 'Update repaired. Opening Mukorob v' + version + '…';

@@ -8,18 +8,19 @@ function oldFile(file){
  try{return fs.readFileSync(path.join(root,source));}catch{return null;}
 }
 async function fixture(useNewUpdater=false,stuckWorker=false){
- let deployed=false,latest='0.9.1',marker='0.9.1',pinned=stuckWorker;
+ let deployed=false,latest='0.9.2',marker='0.9.2',pinned=stuckWorker;
  const server=http.createServer((req,res)=>{
   const file=decodeURIComponent(new URL(req.url,'http://local').pathname).replace(/^\//,'')||'index.html';
   let body;
   if(file==='latest.txt') body=latest;
-  else if(file==='index.html')body=`<!doctype html><head>${deployed?'<meta name="mukorob-version" content="0.9.1">':''}</head><body><h1>${deployed?marker:'0.8.0'}</h1><script src="js/db.js"></script><script src="js/modules/update-manager.js"></script></body>`;
-  else if(file==='VERSION.txt')body=deployed?'0.9.1':'0.8.0';
+  else if(file==='index.html')body=`<!doctype html><head>${deployed?'<meta name="mukorob-version" content="0.9.2">':''}</head><body><h1>${deployed?marker:'0.8.0'}</h1><script src="js/db.js"></script><script src="js/modules/update-manager.js"></script></body>`;
+  else if(file==='VERSION.txt')body=deployed?'0.9.2':'0.8.0';
   else if(file==='sw.js'&&pinned)body=oldFile(file).toString().replace(/,'https:[^']+'/g,'').replace('same&&UPDATE_FIRST.test(url.pathname)','false').replaceAll('caches.match(event.request)','caches.match(event.request,{ignoreSearch:true})').replace('keys.filter(k=>k!==CACHE_NAME)','keys.filter(k=>k.startsWith("mukorob-pdf-")&&k!==CACHE_NAME)');
   else {try{body=deployed?fs.readFileSync(path.join(root,file)):oldFile(file);}catch{}}
   if(body==null){res.writeHead(404);res.end();return;}
   if(file==='sw.js'&&!deployed)body=body.toString().replace(/,'https:[^']+'/g,'');
   if(file==='js/modules/update-manager.js'){if(useNewUpdater)body=fs.readFileSync(path.join(root,file));body=body.toString().replace('https://raw.githubusercontent.com/BTENamibia/Mukorob-Pdf-Project/main/VERSION.txt','/latest.txt');}
+  if(file==='sw.js'&&deployed&&!pinned)body=body.toString()+`\nself.addEventListener('message',event=>{if(event.data==='TEST_CACHE_FAILURE'){Cache.prototype.put=async()=>{throw new DOMException('Storage full','QuotaExceededError');};event.ports[0].postMessage('ready');}});`;
   res.setHeader('Content-Type',file.endsWith('.js')||file.endsWith('.mjs')?'application/javascript':file.endsWith('.html')?'text/html':'application/octet-stream');
   res.setHeader('Cache-Control','no-store');res.end(body);
  });
@@ -51,19 +52,19 @@ test('existing v0.8 Update now reaches the new release, preserves data and reope
   await page.goto(host.url);await page.waitForFunction(()=>navigator.serviceWorker.controller);
   await expect(page.locator('#mkUpdatePanel')).toContainText('v0.8.0');await seed(page);
   host.deploy();await page.locator('#mkUpdateNow').click();
-  await expect(page.locator('h1')).toHaveText('0.9.1',{timeout:30000});
+  await expect(page.locator('h1')).toHaveText('0.9.2',{timeout:30000});
   await expect(page.locator('#mkUpdatePanel')).toHaveCount(0);await preserved(page);
   // Root launch must also refresh; installed PWAs can launch either URL.
   host.marker('Fresh online launch');
   await page.goto(host.url);await expect(page.locator('h1')).toHaveText('Fresh online launch');
-  host.marker('0.9.1');await page.reload();
-  await context.setOffline(true);await page.reload();await expect(page.locator('h1')).toHaveText('0.9.1');await preserved(page);
+  host.marker('0.9.2');await page.reload();
+  await context.setOffline(true);await page.reload();await expect(page.locator('h1')).toHaveText('0.9.2');await preserved(page);
  }finally{await context.setOffline(false);await host.close();}
 });
 test('new updater reports a host that has not deployed, without entering a reload loop',async({page})=>{
- const host=await fixture();host.deploy();host.latest('0.9.2');
+ const host=await fixture();host.deploy();host.latest('0.9.3');
  try{
-  await page.goto(host.url);await expect(page.locator('#mkUpdatePanel')).toContainText('v0.9.2');
+  await page.goto(host.url);await expect(page.locator('#mkUpdatePanel')).toContainText('v0.9.3');
   const initial=page.url();await page.locator('#mkUpdateNow').click();
   await expect(page.locator('#mkUpdatePanel [role=status]')).toContainText('still serving an older release');
   await expect(page.locator('#mkUpdateNow')).toBeEnabled();expect(page.url()).toBe(initial);
@@ -77,7 +78,7 @@ test('current updater activates a replacement worker and checkpoints edits befor
   await expect(page.locator('#mkUpdatePanel')).toContainText('v0.8.0');await seed(page);
   await page.evaluate(()=>{window.MukorobAutosave={flush:async()=>{await MukorobDB.put('drafts',{id:'update-checkpoint',text:'Saved before reload'});}};});
   host.deploy();await page.locator('#mkUpdateNow').click();
-  await expect(page.locator('h1')).toHaveText('0.9.1',{timeout:35000});
+  await expect(page.locator('h1')).toHaveText('0.9.2',{timeout:35000});
   await expect(page.locator('#mkUpdatePanel')).toHaveCount(0);await preserved(page);
   expect(await page.evaluate(async()=>(await MukorobDB.get('drafts','update-checkpoint')).text)).toBe('Saved before reload');
  }finally{await host.close();}
@@ -101,8 +102,46 @@ test('repair replaces a stuck legacy worker without deleting local records or ca
   await page.goto(host.url+'index.html?mkUpdate=previous-retry');
   await expect(page.locator('h1')).toHaveText('0.8.0');
   host.releaseWorker();await page.goto(host.url+'recover.html');await page.locator('#repair').click();
-  await expect(page.locator('h1')).toHaveText('0.9.1');await preserved(page);
+  await expect(page.locator('h1')).toHaveText('0.9.2');await preserved(page);
   expect(await page.evaluate(async()=>!!(await caches.match('https://cdnjs.cloudflare.com/cached-pdf-library.js')))).toBe(true);
-  await page.reload();await expect(page.locator('h1')).toHaveText('0.9.1');
+  await page.reload();await expect(page.locator('h1')).toHaveText('0.9.2');
+ }finally{await host.close();}
+});
+
+test('repair navigation does not replace the offline app opening page',async({page,context})=>{
+ const host=await fixture();host.deploy();
+ try{
+  await page.goto(host.url);await page.waitForFunction(()=>navigator.serviceWorker.controller);
+  await page.goto(host.url+'recover.html');await expect(page.locator('#repair')).toBeVisible();
+  await context.setOffline(true);
+  await page.goto(host.url);await expect(page.locator('h1')).toHaveText('0.9.2');
+  await page.goto(host.url+'recover.html');await expect(page.locator('#repair')).toBeVisible();
+ }finally{await context.setOffline(false);await host.close();}
+});
+
+test('uncached offline launch shows a working recovery page instead of a browser network error',async({page,context})=>{
+ const host=await fixture();host.deploy();
+ try{
+  await page.goto(host.url);await page.waitForFunction(()=>navigator.serviceWorker.controller);
+  await seed(page);
+  await page.evaluate(async()=>{for(const name of await caches.keys())if(name.startsWith('mukorob-pdf-'))await caches.delete(name);});
+  await context.setOffline(true);
+  await page.reload();
+  await expect(page.locator('body')).toContainText('Your saved');
+  await expect(page.locator('#retry')).toBeVisible();
+  await context.setOffline(false);await page.locator('#retry').click();
+  await expect(page.locator('h1')).toHaveText('0.9.2');await preserved(page);
+ }finally{await context.setOffline(false);await host.close();}
+});
+
+test('full cache storage does not discard a successful app download',async({page})=>{
+ const host=await fixture();host.deploy();
+ try{
+  await page.goto(host.url);await page.waitForFunction(()=>navigator.serviceWorker.controller);
+  await seed(page);
+  await page.evaluate(()=>new Promise(resolve=>{const c=new MessageChannel();c.port1.onmessage=resolve;navigator.serviceWorker.controller.postMessage('TEST_CACHE_FAILURE',[c.port2]);}));
+  host.marker('Fresh app despite full storage');
+  await page.reload();await expect(page.locator('h1')).toHaveText('Fresh app despite full storage');
+  await preserved(page);
  }finally{await host.close();}
 });

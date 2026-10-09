@@ -1,3 +1,11 @@
+## v0.9.2 — loading and recovery
+
+- Keep repair navigation separate from the offline app shell.
+- Show a retry page when the offline shell is missing.
+- Serve successful downloads even if cache writes fail.
+- Ship licensed PDF libraries locally for reliable startup and offline use.
+- Preserve local accounts, documents, drafts, sessions and settings.
+
 ## v0.9.1 — installed app update recovery
 
 - Fetch the opening page from the network with an offline fallback instead of retaining the previous release.
