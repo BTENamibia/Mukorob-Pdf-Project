@@ -1,52 +1,49 @@
-/* Mukorob PDF v0.7 — resilient local autosave/draft recovery. */
-const AS = window.MukorobApp;
-const { state, $, toast, currentUserId, writeAudit } = AS;
-let lastSnapshot=''; let timer=null; let saving=false;
-function draftId(){return currentUserId()+'::'+state.fileHash;}
-function signature(){
-  return JSON.stringify({hash:state.fileHash,name:state.fileName,rot:[...(state.pageRotations||new Map()).entries()],annotations:state.annotations});
-}
+/* User-scoped draft checkpoints and recovery before Recent timestamps change. */
+const AS=window.MukorobApp;
+const {state,$,currentUserId,writeAudit}=AS;
+let lastSnapshot='',timer=null,pending=null,paused=false;
+const draftId=()=>currentUserId()+'::'+state.fileHash;
+const signature=()=>JSON.stringify({hash:state.fileHash,name:state.fileName,rot:[...(state.pageRotations||new Map()).entries()],annotations:state.annotations});
 async function saveDraft(force=false){
-  if(!state.pdfDoc||!state.fileHash||saving)return;
-  const sig=signature(); if(!force&&sig===lastSnapshot)return;
-  saving=true;
-  try{
-    const bytes=state.fileBytesForExport?new Blob([state.fileBytesForExport],{type:'application/pdf'}):null;
-    await window.MukorobDB.put('drafts',{id:draftId(),userId:currentUserId(),hash:state.fileHash,name:state.fileName,bytes,rotations:[...(state.pageRotations||new Map()).entries()],annotations:structuredClone(state.annotations),savedAt:Date.now()});
-    lastSnapshot=sig;
-    $('#autosaveStatus')&&( $('#autosaveStatus').textContent='Saved locally');
-  }catch(err){console.warn('Autosave failed',err);$('#autosaveStatus')&&($('#autosaveStatus').textContent='Autosave unavailable');}
-  finally{saving=false;}
+  if(paused||!state.auth.user||!state.pdfDoc||!state.fileHash)return;
+  if(pending){await pending;return saveDraft(force);}
+  const snapshot=signature();if(!force&&snapshot===lastSnapshot)return;
+  // Capture the owner, document and contents before any asynchronous write.
+  const record={id:draftId(),userId:currentUserId(),hash:state.fileHash,name:state.fileName,bytes:new Blob([state.fileBytesForExport],{type:'application/pdf'}),rotations:[...state.pageRotations.entries()],annotations:structuredClone(state.annotations),savedAt:Date.now()};
+  pending=(async()=>{
+    try{await AS.db.put('drafts',record);if(record.id===draftId()){lastSnapshot=snapshot;if($('#autosaveStatus'))$('#autosaveStatus').textContent='Saved locally';}}
+    catch(err){console.warn('Autosave failed',err);if($('#autosaveStatus'))$('#autosaveStatus').textContent='Autosave unavailable';}
+  })();
+  try{await pending;}finally{pending=null;}
 }
-async function checkDraft(){
+async function recover(){
   if(!state.fileHash)return;
   try{
-    const d=await window.MukorobDB.get('drafts',draftId()); if(!d)return;
-    const recent=await window.MukorobDB.get('recent_scoped',draftId());
-    const openedAt=Date.now();
-    if(recent?.lastOpened && d.savedAt<=recent.lastOpened+1000)return;
-    if(d.savedAt<openedAt-1000*60*60*24*30)return;
-    const ok=confirm(`Mukorob has a newer local draft of “${d.name}”. Restore your unsaved changes?`);
-    if(!ok)return;
+    const id=draftId(),d=await AS.db.get('drafts',id);
+    if(!d||d.userId!==currentUserId()||d.hash!==state.fileHash||!d.bytes||d.savedAt<Date.now()-30*86400000)return;
+    const sameAnnotations=JSON.stringify(d.annotations||[])===JSON.stringify(state.annotations||[]);
+    const sameRotations=JSON.stringify(d.rotations||[])===JSON.stringify([...state.pageRotations.entries()]);
+    if(sameAnnotations&&sameRotations)return;
+    if(!confirm(`Restore the local draft of “${d.name}”, saved ${new Date(d.savedAt).toLocaleString()}?`))return;
+    await AS.restoreDraftSource(await d.bytes.arrayBuffer(),d.rotations||[]);
     state.annotations=Array.isArray(d.annotations)?d.annotations:[];
     state.pageRotations=new Map(d.rotations||[]);
-    AS.drawAnnotationsForPage(state.currentPage);
-    state.pageEls.forEach((_,i)=>{const p=state.pageEls[i];if(p?.rendered){p.rendered=false;if(p.canvas){p.canvas.width=0;p.canvas.height=0;p.canvas=null;}p.textLayer=null;p.annotLayer=null;}});
-    AS.updateZoomControls();
-    state.pageEls.forEach((_,i)=>AS.renderPage(i+1,true));
-    lastSnapshot=signature(); toast('Unsaved local changes restored.');
+    await AS.persistAnnotations();
     await writeAudit('draft-restored',{file:d.name});
-  }catch(err){console.warn('Draft recovery unavailable',err);}
+    AS.toast('Unsaved local changes restored.');
+  }catch(err){console.warn('Draft recovery unavailable',err);AS.toast('The saved draft could not be restored. Your source PDF is still available.');}
 }
-function schedule(){clearTimeout(timer);timer=setTimeout(()=>saveDraft(false),1200);}
+function schedule(){clearTimeout(timer);timer=setTimeout(()=>saveDraft(),1200);}
+window.MukorobAutosave={flush:()=>saveDraft(true),recover,pause:()=>{paused=true;},resume:()=>{paused=false;}};
 function wire(){
-  const c=$('#pagesContainer');
-  c.addEventListener('pointerup',schedule,true);
+  $('#pagesContainer').addEventListener('pointerup',schedule,true);
   document.addEventListener('keyup',schedule);
-  window.addEventListener('beforeunload',()=>{if(state.pdfDoc)saveDraft(true);});
-  setInterval(()=>{if(state.pdfDoc)saveDraft(false);},2500);
-  window.addEventListener('mukorob:document-opened',async()=>{lastSnapshot='';$('#autosaveStatus')&&($('#autosaveStatus').textContent='Checking local draft…');await checkDraft();});
-  window.addEventListener('mukorob:document-closed',()=>{lastSnapshot='';$('#autosaveStatus')&&($('#autosaveStatus').textContent='Ready');});
-  $('#autosaveStatus')&&($('#autosaveStatus').textContent='Ready');
+  window.addEventListener('beforeunload',()=>saveDraft(true));
+  window.addEventListener('pagehide',()=>saveDraft(true));
+  document.addEventListener('visibilitychange',()=>{if(document.hidden)saveDraft(true);});
+  setInterval(()=>saveDraft(),2500);
+  window.addEventListener('mukorob:document-opened',()=>{paused=false;lastSnapshot='';schedule();});
+  window.addEventListener('mukorob:document-closed',()=>{clearTimeout(timer);lastSnapshot='';$('#autosaveStatus').textContent='Ready';});
+  $('#autosaveStatus').textContent='Ready';
 }
 window.addEventListener('DOMContentLoaded',wire);

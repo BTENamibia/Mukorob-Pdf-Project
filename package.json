@@ -1,12 +1,14 @@
 {
   "name": "mukorob-pdf",
   "private": true,
-  "version": "0.8.0",
+  "version": "0.9.0",
   "scripts": {
-    "test": "node tests/smoke-test.mjs",
-    "test:browser": "playwright test tests/playwright.spec.mjs"
+    "test": "node tests/smoke-test.mjs && node tests/document-workflows-test.mjs && node tests/draft-recovery-test.mjs",
+    "test:browser": "playwright test"
   },
   "devDependencies": {
-    "@playwright/test": "^1.55.0"
+    "@playwright/test": "^1.55.0",
+    "pdf-lib": "1.17.1",
+    "pdfjs-dist": "3.11.174"
   }
 }

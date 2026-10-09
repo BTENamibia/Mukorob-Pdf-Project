@@ -156,6 +156,9 @@
   }
 
   async function centralLogout() {
+    await window.MukorobAutosave?.flush();
+    if(A.state.pdfDoc)await A.closeDocument();
+    localStorage.removeItem('mukorob-pdf-session-v1');
     await client.auth.signOut();
     localStorage.removeItem('mukorob-central-user');
     A.state.auth.user = null;

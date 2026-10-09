@@ -2,13 +2,13 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Mukorob PDF · Bradz Internal</title>
 <meta name="description" content="Mukorob PDF — read, annotate and manage PDFs on any device.">
-<meta name="theme-color" content="#0B2B55">
+<meta name="theme-color" content="#0B4F8A">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="apple-touch-icon" href="icons/mukorob-icon.jpg">
-<link rel="icon" type="image/jpeg" href="icons/mukorob-icon.jpg">
+<link rel="apple-touch-icon" sizes="180x180" href="icons/mukorob-blue-180.png">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/mukorob-blue-32.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Mukorob PDF">
@@ -21,7 +21,7 @@
   <!-- ===== Top bar ===== -->
   <header id="topbar">
     <div class="brand" id="brandBlock">
-      <img id="brandLogo" src="icons/mukorob-brand.jpg" alt="Mukorob PDF">
+      <img id="brandLogo" src="icons/mukorob-official-blue.jpg" alt="Mukorob PDF">
       <div class="brand-text">
         <span id="brandName">Mukorob PDF</span>
         <span id="brandTag">PDF Reader &amp; Editor</span>
@@ -102,7 +102,7 @@
 
     <main id="viewer">
       <div id="emptyState">
-        <img src="icons/mukorob-brand.jpg" alt="Mukorob PDF" class="empty-mark">
+        <img src="icons/mukorob-official-blue.jpg" alt="Mukorob PDF" class="empty-mark">
         <h1 id="emptyTitle">Mukorob PDF</h1>
         <p id="emptyTag">PDF Reader &amp; Editor</p>
         <button class="primary-btn" id="btnOpenEmpty">Open a PDF</button>
@@ -184,7 +184,7 @@
 <!-- ===== Mukorob authentication ===== -->
 <div id="accessGate" class="auth-backdrop" hidden>
   <div class="auth-card">
-    <div class="auth-brand"><img src="icons/mukorob-icon.jpg" alt=""><div><strong>Mukorob PDF</strong><span>Internal access — BTE Namibia</span></div></div>
+    <div class="auth-brand"><img src="icons/mukorob-blue-192.png" alt=""><div><strong>Mukorob PDF</strong><span>Internal access — BTE Namibia</span></div></div>
     <h2>Enter access code</h2>
     <p class="hint">This installation is for Bradz Trading Enterprises CC staff only, for now.</p>
     <label>Access code<input id="gateCode" type="password" autocomplete="off"></label>
@@ -195,7 +195,7 @@
 
 <div id="authModal" class="auth-backdrop" hidden>
   <div class="auth-card">
-    <div class="auth-brand"><img src="icons/mukorob-icon.jpg" alt="Mukorob PDF"><div><strong>Mukorob PDF</strong><span>Bradz Internal Workspace</span></div></div>
+    <div class="auth-brand"><img src="icons/mukorob-blue-192.png" alt="Mukorob PDF"><div><strong>Mukorob PDF</strong><span>Bradz Internal Workspace</span></div></div>
     <div id="loginView">
       <h2>Sign in</h2><p class="muted">Use your Mukorob PDF user ID and password.</p>
       <label>User ID<input id="loginUser" autocomplete="username" autocapitalize="none"></label>
@@ -245,7 +245,7 @@
         </label>
         <label>Header / top-left logo
           <div class="logo-row">
-            <img id="cfgLogoPreview" src="icons/mukorob-brand.jpg" alt="">
+            <img id="cfgLogoPreview" src="icons/mukorob-official-blue.jpg" alt="">
             <button class="text-btn" id="btnLogoUpload">Upload logo</button>
             <button class="text-btn" id="btnLogoReset">Reset</button>
           </div>
@@ -253,7 +253,7 @@
         </label>
         <label>Dashboard / empty-state logo
           <div class="logo-row">
-            <img id="cfgDashboardLogoPreview" src="icons/mukorob-brand.jpg" alt="">
+            <img id="cfgDashboardLogoPreview" src="icons/mukorob-official-blue.jpg" alt="">
             <button class="text-btn" id="btnDashboardLogoUpload">Upload logo</button>
             <button class="text-btn" id="btnDashboardLogoReset">Reset</button>
           </div>
@@ -261,7 +261,7 @@
         </label>
         <label>Login page icon logo
           <div class="logo-row">
-            <img id="cfgLoginIconPreview" src="icons/mukorob-brand.jpg" alt="">
+            <img id="cfgLoginIconPreview" src="icons/mukorob-official-blue.jpg" alt="">
             <button class="text-btn" id="btnLoginIconUpload">Upload logo</button>
             <button class="text-btn" id="btnLoginIconReset">Reset</button>
           </div>
@@ -269,7 +269,7 @@
         </label>
         <label>Login page background
           <div class="logo-row">
-            <img id="cfgLoginBackgroundPreview" src="icons/mukorob-brand.jpg" alt="">
+            <img id="cfgLoginBackgroundPreview" src="icons/mukorob-official-blue.jpg" alt="">
             <button class="text-btn" id="btnLoginBackgroundUpload">Upload background</button>
             <button class="text-btn" id="btnLoginBackgroundReset">Reset</button>
           </div>
@@ -291,7 +291,7 @@
           <span class="hint">A light deterrent for an internal pilot only — this is checked in the browser, not on a server, so treat it as a "keep casual visitors out" gate, not real security. Share it with staff directly (not in the public repo).</span>
         </label>
         <label>Company stamp
-          <div class="logo-row"><img id="cfgStampPreview" class="stamp-preview" src="icons/icon-192.png" alt="Company stamp preview"><button class="text-btn" id="btnStampUpload">Upload stamp</button><button class="text-btn" id="btnStampReset">Reset</button></div>
+          <div class="logo-row"><img id="cfgStampPreview" class="stamp-preview" src="icons/mukorob-blue-192.png" alt="Company stamp preview"><button class="text-btn" id="btnStampUpload">Upload stamp</button><button class="text-btn" id="btnStampReset">Reset</button></div>
           <p class="hint">Super Admin can store the official company stamp on this installation for the Company Stamp button.</p>
         </label>
       </section>

@@ -28,7 +28,13 @@ The account session remains active until the user explicitly logs out.
 
 ## Opening PDFs from Android file manager
 
-PWA file-handler support is included in the manifest where the browser/Android version supports it. Browser support varies. If the Android file manager does not offer Mukorob PDF as an open-with option, use **Open PDF** inside Mukorob PDF.
+This release remains an installed web/PWA app. Chrome's File Handling API is currently desktop-only, so the web manifest cannot make Mukorob the default PDF viewer on Android. Use **Open PDF** inside Mukorob.
+
+A future native release must register `ACTION_VIEW`, `CATEGORY_DEFAULT`, and `application/pdf` and read granted `content://` URIs safely. After that signed APK is installed, Android can offer Mukorob under **Open with**, where the user may choose **Always**. These settings cannot be changed remotely by this chat. This does not make Mukorob a viewer for every document format.
+
+## Official blue logo
+
+The launcher uses the official blue Mukorob logo. Reopen the app after the hosted release is updated; Android/Chrome may take time to refresh an installed icon. Back up first before considering reinstalling. Do not clear Chrome site data to fix an icon.
 
 ## Updates and existing mobile data
 

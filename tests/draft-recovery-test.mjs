@@ -1,0 +1,17 @@
+import fs from 'node:fs';import vm from 'node:vm';import assert from 'node:assert/strict';
+const code=fs.readFileSync(new URL('../js/modules/autosave.js',import.meta.url),'utf8');
+let draft,restored,confirmed=0,putGate;
+const state={auth:{user:{id:'bradz'}},pdfDoc:{},fileHash:'pdf-hash',fileName:'Example.pdf',fileBytesForExport:new Uint8Array([1,2,3]),pageRotations:new Map([[1,0]]),annotations:[]};
+const status={textContent:'',addEventListener(){}};const window={addEventListener(){},MukorobDB:{get:async()=>draft,put:async(_,record)=>{draft=record;if(putGate)await putGate;}}};
+const app={db:window.MukorobDB,state,$:()=>status,currentUserId:()=>state.auth.user?.id||'anonymous',writeAudit:async()=>{},persistAnnotations:async()=>{},toast(){},restoreDraftSource:async bytes=>{restored=new Uint8Array(bytes);state.fileBytesForExport=bytes;}};
+window.MukorobApp=app;
+vm.runInNewContext(code,{window,document:{addEventListener(){}},Blob,structuredClone,Map,Date,JSON,setTimeout,clearTimeout,setInterval(){},console,confirm:()=>{confirmed++;return true;}});
+const autosave=window.MukorobAutosave;
+draft={id:'bradz::pdf-hash',userId:'bradz',hash:'pdf-hash',name:'Example.pdf',bytes:new Blob([new Uint8Array([4,5,6])]),rotations:[[1,90]],annotations:[{id:'sig',type:'signature'}],savedAt:Date.now()-60000};
+await autosave.recover();assert.equal(confirmed,1);assert.deepEqual([...restored],[4,5,6]);assert.equal(state.pageRotations.get(1),90);assert.equal(state.annotations[0].id,'sig');
+await autosave.recover();assert.equal(confirmed,1,'identical saved changes do not prompt again');
+draft.userId='other-user';state.pageRotations=new Map([[1,0]]);await autosave.recover();assert.equal(confirmed,1,'another user draft is not restored');
+autosave.pause();const previous=draft;await autosave.flush();assert.equal(draft,previous,'loading does not overwrite the recoverable draft');autosave.resume();
+let release;putGate=new Promise(resolve=>release=resolve);const saving=autosave.flush();await Promise.resolve();state.auth.user={id:'staff'};state.fileHash='another-pdf';release();await saving;
+assert.equal(draft.userId,'bradz');assert.equal(draft.hash,'pdf-hash','checkpoint owner/document captured before async write');
+console.log('Draft recovery: stored bytes, rotations, identity isolation and paused loading PASS');

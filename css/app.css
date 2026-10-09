@@ -540,3 +540,45 @@ button:focus-visible,input:focus-visible,a:focus-visible,[tabindex]:focus-visibl
   #topbar #btnLogout[hidden],#topbar #btnLoginTop[hidden],#topbar #btnAdmin[hidden]{display:none!important}
   .company-form-grid{grid-template-columns:1fr!important}
 }
+
+/* Responsive professional document workflows. */
+.document-tools-modal {width:min(580px,calc(100vw - 24px));max-height:90dvh;display:flex;flex-direction:column;}
+.document-tools-body {display:flex;flex-direction:column;gap:16px;overflow:auto;min-height:0;}
+.document-tool-field {display:flex;flex-direction:column;gap:6px;font-size:14px;}
+.document-tool-field input,.document-tool-field select {max-width:100%;padding:10px;border:1px solid var(--border,#64748b);border-radius:6px;}
+.document-tool-field input[type=checkbox] {align-self:flex-start;width:20px;height:20px;}
+.document-tools-body button {min-height:44px;padding:10px;border-radius:6px;cursor:pointer;}
+.document-tools-modal > .hint {padding:0 20px 14px;}
+#btnDocumentTools {flex-shrink:0;}
+@media(max-width:700px){#btnDocumentTools{display:none;}.document-tools-modal{max-height:94dvh;}}
+#toolsMenu {max-height:80dvh;overflow-y:auto;}
+
+/* Official Mukorob blue identity supplied by Bradz, October 2026. */
+:root {--brand-navy:#071A33;--brand-blue:#0759B5;--brand-gold:#FFBE24;--bg:#071A33;--surface:#0A254B;--surface-2:#103A68;--border:#31577F;--text:#F7FAFF;--text-dim:#B3C7DF;--primary:#0759B5;--accent:#FFBE24;}
+:root[data-theme=light] {--bg:#EDF4FC;--surface:#FFFFFF;--surface-2:#DBE9F9;--border:#B8CEE5;--text:#071A33;--text-dim:#455E7B;}
+:root[data-theme=sepia] {--bg:#F5EDDE;--surface:#FFFAF0;--surface-2:#EEE0C4;--border:#CDBB98;--text:#30291F;--text-dim:#65553C;}
+:root[data-theme=contrast] {--bg:#000000;--surface:#000000;--surface-2:#141414;--border:#FFFFFF;--text:#FFFFFF;--text-dim:#FFFFFF;}
+#topbar {background:linear-gradient(105deg,#071A33,#063779 70%,#0759B5);border-bottom:2px solid var(--brand-gold);}
+#brandLogo.official-logo {width:40px;height:40px;object-fit:contain;background:transparent;border-radius:10px;}
+.brand:has(.official-logo) .brand-text {display:flex;color:#FFFFFF;}
+.brand:has(.official-logo) #brandTag {color:#CEE1F9;}
+.empty-mark {width:148px;height:148px;max-height:none;object-fit:contain;border-radius:30px;opacity:1;}
+.primary-btn {background:linear-gradient(135deg,#0759B5,#063779);color:#FFFFFF;border-color:var(--brand-gold);}
+#viewer {background:radial-gradient(circle at 50% 0%,color-mix(in srgb,var(--brand-blue) 15%,var(--bg)),var(--bg) 55%);}
+.document-tools-body button {background:var(--primary);color:#FFFFFF;border:1px solid var(--border);}
+.document-tool-field input,.document-tool-field select {background:var(--surface-2);color:var(--text);}
+.document-tools-body button:disabled {opacity:.5;cursor:default;}
+#btnDocumentTools {color:#FFFFFF;border:1px solid rgba(255,255,255,.35);}
+button:focus-visible,input:focus-visible,select:focus-visible {outline:3px solid var(--accent);outline-offset:2px;}
+[data-theme=contrast] #topbar {background:#000000;border-color:#FFFFFF;}
+[data-theme=contrast] #viewer {background:#000000;}
+[data-theme=contrast] .document-tools-body button {background:#000000;color:#FFFFFF;border:2px solid #FFFFFF;}
+[data-theme=contrast] .primary-btn {background:#000000;color:#FFFFFF;border:2px solid #FFFFFF;}
+@media(max-width:719px){#brandLogo.official-logo{width:36px;height:36px;}.brand:has(.official-logo) #brandName{font-size:13px;}.brand:has(.official-logo) #brandTag{font-size:9px;}.empty-mark{width:128px;height:128px;}}
+/* Keep header text readable over the branded navy in every reading theme. */
+#topbar #docTitle {color:#FFFFFF;}
+#topbar .topbar-center,#zoomLabelTop {color:#D3E5FC;}
+#btnDocumentTools {display:none;}
+@media(min-width:1500px){#btnDocumentTools{display:inline-flex;}}
+@media(max-width:719px){.brand:has(.official-logo) .brand-text{display:none;}}
+#pagesContainer {min-width:0;align-items:safe center;}

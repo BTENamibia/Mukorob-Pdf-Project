@@ -12,13 +12,13 @@ pdfjsLib.GlobalWorkerOptions.workerSrc =
 
 const DEFAULT_SETTINGS = {
   name: 'Mukorob PDF',
-  tagline: 'One Platform. One Organisation. One View.',
-  logo: 'icons/mukorob-brand.jpg',
-  dashboardLogo: 'icons/mukorob-brand.jpg',
-  loginIconLogo: 'icons/mukorob-icon.jpg',
-  loginBackgroundLogo: 'icons/mukorob-brand.jpg',
-  primary: '#0B4F8A',
-  accent: '#E2A321',
+  tagline: 'PDF Reader & Editor',
+  logo: 'icons/mukorob-official-blue.jpg',
+  dashboardLogo: 'icons/mukorob-official-blue.jpg',
+  loginIconLogo: 'icons/mukorob-blue-192.png',
+  loginBackgroundLogo: 'icons/mukorob-official-blue.jpg',
+  primary: '#0759B5',
+  accent: '#FFBE24',
   notice: '',
   annotationsEnabled: true,
   recentEnabled: true,
@@ -141,6 +141,9 @@ function toast(msg, ms = 2200) {
 async function loadSettings() {
   const saved = await MukorobDB.get('settings', 'config');
   if (saved && saved.value) state.settings = { ...DEFAULT_SETTINGS, ...saved.value };
+  if(state.settings.primary==='#0B4F8A')state.settings.primary='#0759B5';
+  if(state.settings.accent==='#E2A321')state.settings.accent='#FFBE24';
+  if(state.settings.tagline==='One Platform. One Organisation. One View.')state.settings.tagline=DEFAULT_SETTINGS.tagline;
 }
 
 async function saveSettings() {
@@ -149,19 +152,24 @@ async function saveSettings() {
 
 function applySettings() {
   const s = state.settings;
-  document.documentElement.style.setProperty('--primary', s.primary);
-  document.documentElement.style.setProperty('--accent', s.accent);
+  document.documentElement.style.setProperty('--primary', s.theme==='contrast'?'#FFD34D':s.primary);
+  document.documentElement.style.setProperty('--accent', s.theme==='contrast'?'#66B7FF':s.accent);
   document.documentElement.setAttribute('data-theme', s.theme);
   document.title = s.name;
   $('#brandName').textContent = s.name;
   $('#brandTag').textContent = s.tagline;
   $('#emptyTitle').textContent = s.name;
   $('#emptyTag').textContent = s.tagline;
-  const headerLogo = s.logo || 'icons/mukorob-brand.jpg';
+  const legacyLogos=['icons/mukorob-brand.jpg','icons/mukorob-icon.jpg','icons/mukorob-pdf-logo.jpg','mukorob-pdf-logo.jpg','icons/icon-192.png','icons/icon-512.png'];
+  for(const key of ['logo','dashboardLogo','loginIconLogo','loginBackgroundLogo']) {
+    if(legacyLogos.includes(s[key]))s[key]=key==='loginIconLogo'?'icons/mukorob-blue-192.png':'icons/mukorob-official-blue.jpg';
+  }
+  const headerLogo = s.logo || 'icons/mukorob-official-blue.jpg';
   const dashboardLogo = s.dashboardLogo || headerLogo;
   $('#brandLogo').src = headerLogo;
+  $('#brandLogo').classList.toggle('official-logo',headerLogo==='icons/mukorob-official-blue.jpg');
   $('.empty-mark').src = dashboardLogo;
-  $('meta[name="theme-color"]').setAttribute('content', s.primary);
+  $('meta[name="theme-color"]').setAttribute('content',s.theme==='contrast'?'#000000':s.primary);
   window.dispatchEvent(new CustomEvent('mukorob:settings-applied', { detail: { settings: s } }));
   const notice = $('#staffNotice');
   if (s.notice && s.notice.trim()) {
@@ -290,6 +298,8 @@ async function openFile(file, fileHandle = null) {
   if (!state.auth.user) { showAuth('login'); toast('Please sign in before opening a document.'); return; }
   if (!hasPermission('open')) { toast('Your account does not have permission to open PDFs.'); return; }
   try {
+    await window.MukorobAutosave?.flush();
+    window.MukorobAutosave?.pause();
     toast('Opening ' + file.name + '…');
     const buf = await file.arrayBuffer();
     const hash = await hashBytes(buf.slice(0));
@@ -310,6 +320,9 @@ async function openFile(file, fileHandle = null) {
 
     const first = await doc.getPage(1);
     state.baseViewport = first.getViewport({ scale: 1 });
+    state.pageRotations = new Map();
+    for (let i=1;i<=doc.numPages;i++) state.pageRotations.set(i,((await doc.getPage(i)).rotate||0));
+    if(window.innerWidth<=719)state.scale=Math.max(.3,Math.max(240,$('#viewer').clientWidth-40)/state.baseViewport.width);
 
     await buildPageShells();
     layoutPages();
@@ -318,6 +331,8 @@ async function openFile(file, fileHandle = null) {
     buildThumbnails();
 
     state.annotations = (await MukorobDB.get('annotations_scoped', scopedKey(hash)))?.items || [];
+    await window.MukorobAutosave?.recover();
+    if(window.innerWidth<=719)await fitWidth();
     redrawAllAnnotations();
 
     await saveRecent(file, hash, fileHandle);
@@ -326,11 +341,26 @@ async function openFile(file, fileHandle = null) {
     toast(file.name + ' loaded — ' + state.numPages + ' pages');
   } catch (err) {
     console.error(err);
+    window.MukorobAutosave?.resume();
     toast('Could not open that PDF.');
   }
 }
 
+async function restoreDraftSource(bytes,rotations=[]) {
+  const doc=await pdfjsLib.getDocument({data:bytes.slice(0)}).promise;
+  const old=state.pdfDoc;
+  resetViewerState();
+  state.pdfDoc=doc;state.fileBytesForExport=bytes;state.numPages=doc.numPages;
+  const first=await doc.getPage(1);state.pageRotations=new Map(rotations);
+  state.baseViewport=first.getViewport({scale:1,rotation:0});
+  if(window.innerWidth<=719)state.scale=Math.max(.3,Math.max(240,$('#viewer').clientWidth-40)/first.getViewport({scale:1,rotation:state.pageRotations.get(1)??first.rotate}).width);
+  await buildPageShells();layoutPages();setupObserver();updatePageIndicator();buildThumbnails();
+  if(old)try{await old.destroy();}catch(_){}
+}
+
 async function closeDocument() {
+  await window.MukorobAutosave?.flush();
+  state.pageRotations=new Map();
   const doc = state.pdfDoc;
   if (state.observer) state.observer.disconnect();
   closeSearch();
@@ -445,17 +475,18 @@ function updateZoomControls() {
   $('#btnNextPage').disabled = !hasDoc || state.currentPage >= state.numPages;
 }
 
-function fitWidth() {
-  if (!state.pdfDoc || !state.baseViewport) return;
-  const available = Math.max(280, $('#viewer').clientWidth - 40);
-  setScale(available / state.baseViewport.width);
+async function fitWidth() {
+  if(!state.pdfDoc)return;
+  const page=await state.pdfDoc.getPage(state.currentPage);
+  const viewport=page.getViewport({scale:1,rotation:state.pageRotations.get(state.currentPage)??page.rotate});
+  setScale(Math.max(240,$('#viewer').clientWidth-40)/viewport.width);
 }
 
-function fitPage() {
-  if (!state.pdfDoc || !state.baseViewport) return;
-  const availableW = Math.max(280, $('#viewer').clientWidth - 40);
-  const availableH = Math.max(280, $('#viewer').clientHeight - 40);
-  setScale(Math.min(availableW / state.baseViewport.width, availableH / state.baseViewport.height));
+async function fitPage() {
+  if(!state.pdfDoc)return;
+  const page=await state.pdfDoc.getPage(state.currentPage);
+  const viewport=page.getViewport({scale:1,rotation:state.pageRotations.get(state.currentPage)??page.rotate});
+  setScale(Math.min(Math.max(240,$('#viewer').clientWidth-40)/viewport.width,Math.max(240,$('#viewer').clientHeight-40)/viewport.height));
 }
 
 function downloadOriginalPdf() {
@@ -1238,7 +1269,7 @@ function buildRecentRow(r) {
   row.className = 'recent-item';
   const img = document.createElement('img');
   img.className = 'recent-thumb';
-  img.src = r.thumb || 'icons/icon-192.png';
+  img.src = r.thumb || 'icons/mukorob-blue-192.png';
   const info = document.createElement('div');
   info.className = 'recent-info';
   const name = document.createElement('div');
@@ -1374,7 +1405,7 @@ function wireAdminUI() {
   $('#adminStampInput').addEventListener('change', (e) => {
     const f=e.target.files[0]; if(!f)return; const reader=new FileReader(); reader.onload=()=>{ $('#cfgStampPreview').src=reader.result; $('#cfgStampPreview').dataset.value=reader.result; }; reader.readAsDataURL(f);
   });
-  $('#btnStampReset').addEventListener('click',()=>{ $('#cfgStampPreview').src='icons/icon-192.png'; $('#cfgStampPreview').dataset.value=''; });
+  $('#btnStampReset').addEventListener('click',()=>{ $('#cfgStampPreview').src='icons/mukorob-blue-192.png'; $('#cfgStampPreview').dataset.value=''; });
 
   $('#btnAdminSave').addEventListener('click', async () => {
     state.settings.name = $('#cfgName').value.trim() || DEFAULT_SETTINGS.name;
@@ -1476,7 +1507,7 @@ function populateAdminForm() {
   $('#cfgLoginIconPreview').dataset.value = s.loginIconLogo || '';
   $('#cfgLoginBackgroundPreview').src = s.loginBackgroundLogo || DEFAULT_SETTINGS.loginBackgroundLogo;
   $('#cfgLoginBackgroundPreview').dataset.value = s.loginBackgroundLogo || '';
-  $('#cfgStampPreview').src = s.companyStamp || 'icons/icon-192.png';
+  $('#cfgStampPreview').src = s.companyStamp || 'icons/mukorob-blue-192.png';
   $('#cfgStampPreview').dataset.value = s.companyStamp || '';
 }
 
@@ -1737,6 +1768,7 @@ renderPage = async function(pageNum, force=false) {
       const content = await page.getTextContent({ normalizeWhitespace: true });
       const viewport = page.getViewport({ scale: state.scale });
       const textDivs = [];
+      layer.style.setProperty('--scale-factor',viewport.scale);
       await pdfjsLib.renderTextLayer({
         textContentSource: content,
         container: layer,
@@ -1923,6 +1955,7 @@ async function restoreSession(){
   }catch(_){return false;}
 }
 async function logoutUser(){
+  await window.MukorobAutosave?.flush();
   const oldUser=state.auth.user;
   if(oldUser) await writeAudit('logout', { userId: oldUser.id });
   localStorage.removeItem(MUKOROB_SESSION_KEY);
@@ -2153,6 +2186,7 @@ renderPage=async function(pageNum,force=false){
     // Rebuild selectable text layer against the same rotated viewport.
     if(p.textLayer)p.textLayer.remove();
     const layer=document.createElement('div');layer.className='text-layer';p.wrap.insertBefore(layer,p.annotLayer||null);p.textLayer=layer;
+    layer.style.setProperty('--scale-factor',cssViewport.scale);
     try{const content=await page.getTextContent({normalizeWhitespace:true});const divs=[];await pdfjsLib.renderTextLayer({textContentSource:content,container:layer,viewport:cssViewport,textDivs:divs,enhanceTextSelection:true}).promise;}catch(_){ }
     if(!p.annotLayer.dataset.wired){p.annotLayer.dataset.wired='1';attachAnnotPointerHandlers(pageNum,p.annotLayer);}
   }catch(err){console.error('render error',pageNum,err);}finally{p.rendering=false;}
@@ -2222,7 +2256,12 @@ printOriginalPdf=async function(){
 const v05DownloadOriginalPdf=downloadOriginalPdf;
 downloadOriginalPdf=function(){if(!requirePermission('download'))return;writeAudit('download',{file:state.fileName});return v05DownloadOriginalPdf();};
 const v05SaveCurrentPdfAs=saveCurrentPdfAs;
-saveCurrentPdfAs=async function(){if(!requirePermission('download'))return; if(hasRotationEdits())return saveCurrentPdfWithRotations(state.fileName||'Mukorob-document.pdf');return v05SaveCurrentPdfAs();};
+saveCurrentPdfAs=async function(){
+  if(!canExportWorkingPdf()||!state.fileBytesForExport)return;
+  try{const bytes=hasWorkingEdits()?await buildWorkingPdfBytes():state.fileBytesForExport;
+    return await saveBytesAs(bytes,state.fileName||'Mukorob-document.pdf');
+  }catch(err){console.error(err);toast('Could not save this PDF.');}
+};
 
 /* Permission guards around page operations. */
 const v05DeletePage=deleteCurrentPage; deleteCurrentPage=async function(){if(requirePermission('edit')){const ok=await v05DeletePage();await writeAudit('delete-page',{file:state.fileName,page:state.currentPage});return ok;}};
@@ -2237,40 +2276,17 @@ const v05Export=exportAnnotatedPdf; exportAnnotatedPdf=async function(){if(requi
 /* Stamp rendering is owned exclusively by modules/annotations.js. */
 /* Legacy stamp placement removed: modules/annotations.js owns stamp placement. */
 
-async function buildWorkingPdfBytes() {
-  if (!state.fileBytesForExport) return null;
-  const {PDFDocument,rgb}=PDFLib;
-  const pdfDoc=await PDFDocument.load(state.fileBytesForExport);
-  const pages=pdfDoc.getPages();
-  for(let i=0;i<pages.length;i++){
-    const r=state.pageRotations.get(i+1);
-    if(typeof r==='number' && r) pages[i].setRotation(PDFLib.degrees(r));
-  }
-  for(const a of state.annotations){
-    const page=pages[a.page-1]; if(!page) continue;
-    const {width,height}=page.getSize(); const col=hexToRgbFloat(a.color||'#E2A321');
-    if(a.type==='highlight') page.drawRectangle({x:a.rect.x*width,y:height-(a.rect.y+a.rect.h)*height,width:a.rect.w*width,height:a.rect.h*height,color:rgb(col.r,col.g,col.b),opacity:.35});
-    else if(a.type==='ink') for(let i=1;i<a.points.length;i++){
-      const p0=a.points[i-1],p1=a.points[i];
-      page.drawLine({start:{x:p0.x*width,y:height-p0.y*height},end:{x:p1.x*width,y:height-p1.y*height},thickness:2,color:rgb(col.r,col.g,col.b)});
-    } else if(a.type==='signature'){
-      const font=await pdfDoc.embedFont(PDFLib.StandardFonts.HelveticaOblique);
-      page.drawText(a.text||'Signature',{x:a.rect.x*width,y:height-(a.rect.y+a.rect.h*.78)*height,size:Math.max(10,a.rect.h*height*.72),font,color:rgb(col.r,col.g,col.b)});
-    } else if(a.type==='note'){
-      const x=a.rect.x*width,y=height-a.rect.y*height;
-      page.drawRectangle({x,y:y-10,width:10,height:10,color:rgb(col.r,col.g,col.b)});
-      if(a.text) page.drawText(a.text.slice(0,90),{x:x+14,y:y-10,size:8,color:rgb(col.r,col.g,col.b)});
-    } else if(a.type==='stamp'&&a.src){
-      try{
-        const raw=a.src.split(',')[1],bin=atob(raw),bytes=new Uint8Array(bin.length);
-        for(let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
-        const image=/^data:image\/png/i.test(a.src)?await pdfDoc.embedPng(bytes):await pdfDoc.embedJpg(bytes);
-        page.drawImage(image,{x:a.rect.x*width,y:height-(a.rect.y+a.rect.h)*height,width:a.rect.w*width,height:a.rect.h*height});
-      }catch(err){console.warn('stamp export failed',err);}
-    }
-  }
-  return pdfDoc.save({useObjectStreams:true});
+function canExportWorkingPdf() {
+  if(!requirePermission('download'))return false;
+  for(const a of state.annotations){const permission=a.type==='signature'?'signature':a.type==='stamp'?'stamp':'annotate';if(!requirePermission(permission))return false;}
+  return true;
 }
+async function buildWorkingPdfBytes() {
+  if(!state.fileBytesForExport)return null;
+  if(!window.MukorobPdfEngine)throw new Error('Document tools are still loading.');
+  return window.MukorobPdfEngine.exportWorkingPdf(PDFLib,state.fileBytesForExport,state.pageRotations,state.annotations);
+}
+
 function hasWorkingEdits() { return hasRotationEdits() || state.annotations.length>0; }
 
 /* Save/export now includes rotation and image stamps. */
@@ -2292,7 +2308,7 @@ exportAnnotatedPdf=async function(){
 
 /* Reset per-page rotations whenever a different document is opened/closed. */
 const v05CloseDocument=closeDocument;
-closeDocument=async function(){state.pageRotations=new Map();return v05CloseDocument();};
+closeDocument=async function(){return v05CloseDocument();};
 
 /* Print button + edit/sign/stamp wiring. */
 window.addEventListener('DOMContentLoaded',()=>{
@@ -2393,22 +2409,6 @@ window.addEventListener('DOMContentLoaded',()=>{
   const baseResetViewerState=resetViewerState;
   resetViewerState=function(){state.pageRotations=new Map();return baseResetViewerState();};
 
-  const baseOpenFile= openFile;
-  openFile=async function(file,fileHandle=null){
-    await baseOpenFile(file,fileHandle);
-    if(!state.pdfDoc)return;
-    try{
-      const first=await state.pdfDoc.getPage(1);
-      state.baseViewport=first.getViewport({scale:1,rotation:0});
-      state.pageRotations=new Map();
-      for(let i=1;i<=state.numPages;i++){
-        const pg=await state.pdfDoc.getPage(i); const angle=((pg.rotate||0)%360+360)%360;
-        state.pageRotations.set(i,angle);
-      }
-      layoutPages();
-      updateZoomControls();
-    }catch(err){console.warn('rotation state init failed',err);}
-  };
 
   // Hide the browser-only owner admin entry from staff and enforce the current user.
   updateAuthUI();
@@ -2433,7 +2433,7 @@ window.addEventListener('DOMContentLoaded',()=>{
 /* v0.7 module bridge: expose the stable application surface to ES modules. */
 window.MukorobApp = {
   state, $, $, toast, requirePermission, hasPermission, currentUserId, db: MukorobDB,
-  openFile, closeDocument, renderPage, drawAnnotationsForPage, persistAnnotations,
+  openFile, closeDocument, restoreDraftSource, renderPage, drawAnnotationsForPage, persistAnnotations,
   saveBytesAs, buildWorkingPdfBytes, hasWorkingEdits, writeAudit, loadSettings,
   saveSettings, applySettings, updateZoomControls, buildThumbnails, highlightCurrentThumb,
   getUser, normalizeId, randomToken, hashPassword, makePasswordRecord,

@@ -1,6 +1,29 @@
-# Mukorob PDF v0.8.0 — Bradz Internal Edition
+# Mukorob PDF v0.9.0 — Bradz Internal Edition
 
 Mukorob PDF is a local-first PDF Reader & Editor for Bradz Trading Enterprises CC (BTE Namibia), designed for controlled internal use.
+
+## v0.9.0 — official blue identity and document tools
+
+The official logo is the blue square Mukorob rock/M emblem supplied by Bradz Trading Enterprises CC on 9 October 2026. The supplied JPEG is preserved unchanged as `icons/mukorob-official-blue.jpg`; PNG sizes and an Android-safe padded maskable icon are derived from it. The web header, dashboard, authentication screens, favicon, Apple touch icon, PWA launcher and shortcut icons use this identity. Old built-in branding references migrate automatically; custom administrator uploads remain intact.
+
+- PDFs fit to the mobile screen on opening; fit controls respect current page rotation.
+- Navy/blue/gold interface with Dark, Light, Sepia and High Contrast reading themes.
+- **Document tools → Create PDF from images:** PNG/JPEG images become a new A4 PDF, one image per page, in selected order.
+- **Document tools → Fill PDF form:** fill standard AcroForm text, checkbox, dropdown, radio and list fields; optionally flatten supported fields in the exported copy. Read-only fields remain read-only. XFA/scanned forms and certificate signing are not supported. Current text tools use the standard PDF Latin font encoding.
+- **Document tools → Watermarks & page numbers:** add text and/or numbering to all pages or a validated range such as `1,3-5`. Output is a new copy; the open source stays unchanged.
+- Save As includes current rotations and annotations. Export and native printing use one rotation-aware PDF pipeline for signatures, stamps, highlights, notes and ink.
+- Local drafts recover before the Recent timestamp changes. Draft source bytes are restored along with annotations and page rotations. Writes wait for IndexedDB transaction commit, and checkpoints run before close and on backgrounding where the browser permits.
+- Desktop and mobile browser regression tests exercise the actual PDF workflows with generated fixtures. Tests isolate external identity services and do not operate on live staff accounts.
+
+### Installed app update and Android defaults
+
+After this release is published at the existing HTTPS hosting address, reopen Mukorob and accept its update prompt. Android/Chrome controls when the installed launcher icon refreshes; changing the web files does not immediately replace every already-installed icon. Do not clear browser storage or uninstall without an encrypted backup, because local Recent documents and drafts belong to that browser profile.
+
+The current repository is a PWA, not a native Android APK. Chrome's PWA File Handling API is currently desktop-only; adding PDF entries to the web manifest does **not** register an Android default PDF viewer. Use Open PDF inside Mukorob on Android for now. A signed native Android package with PDF ACTION_VIEW/content-URI handling is required for an Android default-viewer release. Mukorob does not yet open Word, Excel or all other document formats.
+
+### Current identity architecture
+
+The code already contains a Supabase identity bridge plus local-account fallback. PDFs, drafts and Recent remain local. The checked-in SQL foundation and identity bridge currently use different company table/field names; the deployed schema and privileged admin Edge Function must be reconciled and independently verified before claiming production central authorization. The Edge Function source is not included here. Local fallback is retained for compatibility in this release.
 
 ## v0.8.0 branding and icon release
 
@@ -83,7 +106,7 @@ Autosave stores a local draft under the current signed-in user and document hash
 
 ## Security architecture
 
-v0.7.1 remains a **local-device internal pilot**. Passwords are salted and hashed in browser Web Crypto. Users, sessions, permissions and audit records are still local to the device. The encrypted migration feature protects exported local data, but it does not replace server-enforced authentication.
+The compatibility local-account path remains a **local-device internal pilot**. Passwords are salted and hashed in browser Web Crypto. Local fallback users, permissions and audit records remain device-local; the Supabase bridge adds central identity but requires backend verification. The encrypted migration feature protects exported local data, but it does not replace server-enforced authentication.
 
 For production organisation-wide deployment, Mukorob PDF should move authentication, sessions, permissions, document sharing and audit authorization to a server-side Mukorob API/identity service. The Super Admin role must then be enforced server-side.
 
@@ -113,7 +136,8 @@ npm test
 ### Browser tests
 
 ```text
-npm install
+npm ci
+npx playwright install chromium
 npm run test:browser
 ```
 
@@ -134,5 +158,6 @@ The repository also contains a GitHub Actions QA workflow that runs structural t
 ## Ownership
 
 **Bradz Trading Enterprises CC (BTE Namibia)**  
+Developer: Bradz Trading Enterprises CC
 Product: Mukorob PDF  
 Purpose: Internal document reading, editing and management

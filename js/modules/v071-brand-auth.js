@@ -7,14 +7,14 @@
 
   function applyBranding() {
     const s = A.state?.settings || {};
-    const header = s.logo || 'icons/mukorob-brand.jpg';
-    const dashboard = s.dashboardLogo || 'icons/mukorob-brand.jpg';
-    const loginIcon = s.loginIconLogo || 'icons/mukorob-icon.jpg';
-    const loginBg = s.loginBackgroundLogo || 'icons/mukorob-brand.jpg';
+    const header = s.logo || 'icons/mukorob-official-blue.jpg';
+    const dashboard = s.dashboardLogo || 'icons/mukorob-official-blue.jpg';
+    const loginIcon = s.loginIconLogo || 'icons/mukorob-blue-192.png';
+    const loginBg = s.loginBackgroundLogo || 'icons/mukorob-official-blue.jpg';
 
     const brand = $('#brandLogo');
     const empty = $('.empty-mark');
-    if (brand) brand.src = header;
+    if (brand) {brand.src = header;brand.classList.toggle('official-logo',header==='icons/mukorob-official-blue.jpg');}
     if (empty) empty.src = dashboard;
 
     document.querySelectorAll('#authModal .auth-brand img, #accessGate .auth-brand img').forEach((img) => {

@@ -1,3 +1,14 @@
+## 0.9.0 — 2026-10-09
+
+- Adopt the supplied official blue Mukorob logo throughout web/mobile branding and themes.
+- Add valid PNG launcher, favicon, Apple and maskable icons; migrate built-in branding references without replacing custom uploads.
+- Add PDF images, AcroForm filling/flattening, watermarks and page numbering.
+- Unify rotation-aware Save As, annotation export and native printing.
+- Fix draft recovery ordering, restore stored bytes and checkpoint before close/backgrounding.
+- Resolve local writes only after database transaction commit; close the open document on central logout.
+- Add real PDF-engine tests and desktop/mobile browser workflow regressions.
+- Retain developer credit: Bradz Trading Enterprises CC.
+
 # Mukorob PDF v0.7
 
 ## Bradz Internal Edition

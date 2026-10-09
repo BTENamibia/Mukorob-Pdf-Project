@@ -69,7 +69,9 @@ const MukorobDB = (() => {
     const s = await tx(store, 'readwrite');
     return new Promise((resolve, reject) => {
       const r = s.put(value);
-      r.onsuccess = () => resolve(true);
+      s.transaction.oncomplete = () => resolve(true);
+      s.transaction.onabort = () => reject(s.transaction.error || new Error('Local write was aborted.'));
+      s.transaction.onerror = () => reject(s.transaction.error || r.error);
       r.onerror = () => reject(r.error);
     });
   }
@@ -78,7 +80,9 @@ const MukorobDB = (() => {
     const s = await tx(store, 'readwrite');
     return new Promise((resolve, reject) => {
       const r = s.delete(key);
-      r.onsuccess = () => resolve(true);
+      s.transaction.oncomplete = () => resolve(true);
+      s.transaction.onabort = () => reject(s.transaction.error || new Error('Local write was aborted.'));
+      s.transaction.onerror = () => reject(s.transaction.error || r.error);
       r.onerror = () => reject(r.error);
     });
   }
