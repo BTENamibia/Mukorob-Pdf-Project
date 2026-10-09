@@ -1,3 +1,10 @@
+## v0.9.1 — installed app update recovery
+
+- Fetch the opening page from the network with an offline fallback instead of retaining the previous release.
+- Bound and parallelise local worker installation; third-party CDN requests no longer block activation.
+- Verify the installed worker version before reloading, save drafts first, and show retryable errors.
+- Retain IndexedDB/localStorage and unrelated caches; preserve cached PDF libraries.
+
 ## 0.9.0 — 2026-10-09
 
 - Adopt the supplied official blue Mukorob logo throughout web/mobile branding and themes.

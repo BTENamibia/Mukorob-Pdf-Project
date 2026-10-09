@@ -2,7 +2,7 @@
 (() => {
   const REPO_VERSION_URL = 'https://raw.githubusercontent.com/BTENamibia/Mukorob-Pdf-Project/main/VERSION.txt';
   const isWindowsLocal = location.hostname === '127.0.0.1' || location.hostname === 'localhost';
-  let currentVersion = '0.7.3';
+  const currentVersion = document.querySelector('meta[name="mukorob-version"]')?.content || '0.8.0';
   let latestVersion = null;
   let registration = null;
   let updateShown = false;
@@ -16,14 +16,10 @@
     return false;
   };
 
-  async function readLocalVersion() {
-    try {
-      const r = await fetch('./VERSION.txt?_=' + Date.now(), { cache: 'no-store' });
-      if (r.ok) {
-        const v = parseVersion(await r.text());
-        if (v) currentVersion = v;
-      }
-    } catch (_) {}
+  async function hostedVersion() {
+    const r = await fetch('./VERSION.txt?mkCheck=' + Date.now(), {cache:'no-store', signal:AbortSignal.timeout(10000)});
+    if (!r.ok) throw new Error('The update could not be downloaded. Check your connection and retry.');
+    return parseVersion(await r.text());
   }
 
   function styles() {
@@ -41,30 +37,32 @@
   }
 
   function reloadAfterUpdate() {
-    const url = new URL(location.href);
+    const url = new URL('./index.html', location.href);
     url.searchParams.set('mkUpdate', Date.now());
     location.replace(url.href);
   }
 
-  async function waitForControllerChange(timeoutMs = 15000) {
-    if (!('serviceWorker' in navigator)) return false;
-    if (navigator.serviceWorker.controller) {
-      // Wait for the newly installed worker to take control. sw.js uses skipWaiting/clientsClaim.
-      return await new Promise(resolve => {
-        let settled = false;
-        const finish = value => {
-          if (settled) return;
-          settled = true;
-          navigator.serviceWorker.removeEventListener('controllerchange', onChange);
-          clearTimeout(timer);
-          resolve(value);
-        };
-        const onChange = () => finish(true);
-        const timer = setTimeout(() => finish(false), timeoutMs);
-        navigator.serviceWorker.addEventListener('controllerchange', onChange);
-      });
+  async function workerVersion(worker) {
+    if (!worker) return null;
+    return new Promise(resolve => {
+      const channel = new MessageChannel();
+      const timer = setTimeout(() => {channel.port1.close(); resolve(null);}, 1500);
+      channel.port1.onmessage = e => {clearTimeout(timer); channel.port1.close(); resolve(e.data?.version);};
+      worker.postMessage({type:'GET_VERSION'}, [channel.port2]);
+    });
+  }
+
+  async function activateUpdate(v) {
+    registration = await navigator.serviceWorker.register('./sw.js', {updateViaCache:'none'});
+    await registration.update();
+    const deadline = Date.now() + 30000;
+    while (Date.now() < deadline) {
+      registration.waiting?.postMessage({type:'SKIP_WAITING'});
+      const installed = await workerVersion(navigator.serviceWorker.controller);
+      if (installed && !newer(v, installed)) return;
+      await new Promise(resolve => setTimeout(resolve, 250));
     }
-    return true;
+    throw new Error('Installation has not finished. Check your connection, then try Update now again.');
   }
 
   function showUpdate(v) {
@@ -96,44 +94,30 @@
       btn.disabled = true;
       btn.textContent = 'Downloading update…';
 
-      if (isWindowsLocal) {
-        btn.disabled = false;
-        btn.textContent = 'I updated — reload';
-        updateInProgress = false;
-        return;
-      }
-
       try {
-        if (!registration) registration = await navigator.serviceWorker.getRegistration();
-        if (!registration) registration = await navigator.serviceWorker.register('sw.js');
-        if (registration) {
+        const hosted = await hostedVersion();
+        if (newer(v, hosted)) throw new Error('This app address is still serving an older release. Please retry after publication finishes.');
+        await window.MukorobAutosave?.flush();
+        if (!isWindowsLocal && 'serviceWorker' in navigator) {
           btn.textContent = 'Installing update…';
-          await registration.update();
-
-          // A waiting worker can occur in browsers/PWAs that do not activate immediately.
-          if (registration.waiting) {
-            registration.waiting.postMessage({ type: 'SKIP_WAITING' });
-          }
-
-          const controlled = await waitForControllerChange(15000);
-          if (controlled || !navigator.serviceWorker.controller) {
-            btn.textContent = 'Reloading…';
-            reloadAfterUpdate();
-            return;
-          }
+          await activateUpdate(v);
         }
-      } catch (_) {
-        // Fall through to a cache-busting reload. The SW will retry installation on next load.
+        btn.textContent = 'Reloading…';
+        reloadAfterUpdate();
+      } catch (error) {
+        let status = panel.querySelector('[role="status"]');
+        if (!status) {status = document.createElement('p'); status.setAttribute('role','status'); panel.appendChild(status);}
+        status.textContent = error.message || 'Update failed. Check your connection and retry.';
+        btn.disabled = false;
+        btn.textContent = isWindowsLocal ? 'I updated — reload' : 'Update now';
+        updateInProgress = false;
       }
-
-      btn.textContent = 'Refreshing…';
-      setTimeout(reloadAfterUpdate, 300);
     };
   }
 
   async function checkLatest() {
     try {
-      const r = await fetch(REPO_VERSION_URL + '?_=' + Date.now(), { cache: 'no-store', mode: 'cors' });
+      const r = await fetch(REPO_VERSION_URL + '?_=' + Date.now(), { cache: 'no-store', mode: 'cors', signal:AbortSignal.timeout(10000) });
       if (!r.ok) return;
       const v = parseVersion(await r.text());
       if (v) { latestVersion = v; showUpdate(v); }
@@ -143,12 +127,11 @@
   }
 
   async function install() {
-    await readLocalVersion();
     if ('serviceWorker' in navigator) {
       try {
         registration = await navigator.serviceWorker.getRegistration();
-        if (registration) await registration.update();
-        else registration = await navigator.serviceWorker.register('sw.js');
+        registration = await navigator.serviceWorker.register('./sw.js', {updateViaCache:'none'});
+        registration.update().catch(() => {});
         navigator.serviceWorker.addEventListener('controllerchange', () => {
           // A completed SW replacement is handled by the update flow; avoid duplicate prompts.
           if (!updateInProgress && latestVersion && newer(latestVersion, currentVersion)) showUpdate(latestVersion);

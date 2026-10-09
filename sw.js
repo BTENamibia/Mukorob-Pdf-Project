@@ -1,7 +1,77 @@
-/* Mukorob PDF v0.9.0 service worker — update-safe PWA cache. */
-const CACHE_NAME = 'mukorob-pdf-v0.9.0-document-tools-icons';
-const APP_SHELL=['./','./index.html','./manifest.webmanifest','./css/app.css','./js/app.js','./js/app-core.js','./js/modules/print.js','./js/modules/annotations.js','./js/modules/organizer.js','./js/modules/autosave.js','./js/modules/data-migration.js','./js/modules/testing.js','./js/modules/v071-brand-auth.js','./js/modules/update-manager.js','./js/modules/supabase-auth.js','./js/db.js','./VERSION.txt','./icons/mukorob-official-blue.jpg','./icons/mukorob-blue-192.png','./icons/mukorob-blue-512.png','./icons/mukorob-blue-180.png','./icons/mukorob-blue-32.png','./icons/mukorob-blue-maskable-512.png','./js/modules/document-tools.js','./js/modules/document-engine.mjs','https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js','https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js','https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js'];
-const UPDATE_FIRST=/\/((index\.html)|(js\/app\.js)|(js\/app-core\.js)|(js\/modules\/[^/]+\.m?js)|(js\/db\.js)|(css\/app\.css)|(VERSION\.txt)|(manifest\.webmanifest))$/;
-self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE_NAME).then(async cache=>{for(const url of APP_SHELL){try{const res=await fetch(url,{mode:'cors',cache:'no-store'});if(res.ok)await cache.put(url,res);}catch(_){}}}).then(()=>self.skipWaiting())));
-self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE_NAME).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
-self.addEventListener('fetch',event=>{if(event.request.method!=='GET')return;const url=new URL(event.request.url),same=url.origin===self.location.origin;if(same&&UPDATE_FIRST.test(url.pathname)){event.respondWith(fetch(event.request,{cache:'no-store'}).then(res=>{if(res.ok)caches.open(CACHE_NAME).then(c=>c.put(event.request,res.clone()));return res;}).catch(()=>caches.match(event.request).then(c=>c||caches.match(url.pathname))));return;}event.respondWith(caches.match(event.request).then(cached=>cached||fetch(event.request).then(res=>{if(res.ok&&same)caches.open(CACHE_NAME).then(c=>c.put(event.request,res.clone()));return res;}).catch(()=>cached)));});
+/* Mukorob PDF v0.9.1 — bounded installation and fresh navigation. */
+const RELEASE = '0.9.1';
+const CACHE_NAME = 'mukorob-pdf-v0.9.1-update-recovery';
+const APP_SHELL = ['./','./index.html','./manifest.webmanifest','./css/app.css','./js/app.js','./js/app-core.js','./js/modules/print.js','./js/modules/annotations.js','./js/modules/organizer.js','./js/modules/autosave.js','./js/modules/data-migration.js','./js/modules/testing.js','./js/modules/v071-brand-auth.js','./js/modules/update-manager.js','./js/modules/supabase-auth.js','./js/db.js','./VERSION.txt','./icons/mukorob-official-blue.jpg','./icons/mukorob-blue-192.png','./icons/mukorob-blue-512.png','./icons/mukorob-blue-180.png','./icons/mukorob-blue-32.png','./icons/mukorob-blue-maskable-512.png','./js/modules/document-tools.js','./js/modules/document-engine.mjs','https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js','https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js','https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js'];
+const scope = new URL('./', self.location.href);
+const shellKey = new URL('index.html', scope).href;
+async function fresh(request) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10000);
+  try {
+    const url = new URL(typeof request === 'string' ? request : request.url, scope);
+    url.searchParams.set('mkRelease', RELEASE);
+    return await fetch(url.href, {cache:'no-store', signal:controller.signal});
+  } finally { clearTimeout(timer); }
+}
+self.addEventListener('install', event => event.waitUntil((async () => {
+  const cache = await caches.open(CACHE_NAME);
+  // Third-party CDN requests must never hold worker activation open.
+  await Promise.all(APP_SHELL.filter(path => !path.startsWith('https:')).map(async path => {
+    const response = await fresh(new URL(path, scope).href);
+    if (!response.ok) throw new Error('Update download failed: ' + path);
+    await cache.put(new URL(path, scope).href, response);
+  }));
+  await self.skipWaiting();
+})()));
+self.addEventListener('message', event => {
+  if (event.data?.type === 'SKIP_WAITING') event.waitUntil(self.skipWaiting());
+  if (event.data?.type === 'GET_VERSION') event.ports[0]?.postMessage({version:RELEASE});
+});
+self.addEventListener('activate', event => event.waitUntil((async () => {
+  const current = await caches.open(CACHE_NAME);
+  for (const key of await caches.keys()) {
+    if (!key.startsWith('mukorob-pdf-') || key === CACHE_NAME) continue;
+    const old = await caches.open(key);
+    // Preserve previously cached PDF libraries for offline reading.
+    for (const request of await old.keys()) {
+      if (new URL(request.url).origin !== scope.origin && !(await current.match(request))) {
+        const response = await old.match(request);
+        if (response) await current.put(request, response);
+      }
+    }
+    await caches.delete(key);
+  }
+  await self.clients.claim();
+})()));
+self.addEventListener('fetch', event => {
+  if (event.request.method !== 'GET') return;
+  const url = new URL(event.request.url);
+  const same = url.origin === scope.origin && url.pathname.startsWith(scope.pathname);
+  const navigation = same && event.request.mode === 'navigate';
+  const applicationFile = same && /\.(?:html|js|mjs|css|txt|webmanifest|png|jpg)$/.test(url.pathname);
+  if (navigation || applicationFile) {
+    event.respondWith((async () => {
+      const cache = await caches.open(CACHE_NAME);
+      const key = navigation ? shellKey : url.origin + url.pathname;
+      try {
+        const response = await fresh(event.request);
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        await cache.put(key, response.clone());
+        return response;
+      } catch (_) {
+        return (await cache.match(key)) || Response.error();
+      }
+    })());
+    return;
+  }
+  event.respondWith((async () => {
+    const cache = await caches.open(CACHE_NAME);
+    const cached = await cache.match(event.request);
+    if (cached) return cached;
+    try {
+      const response = await fetch(event.request);
+      if (response.ok && (same || APP_SHELL.includes(event.request.url))) await cache.put(event.request, response.clone());
+      return response;
+    } catch (_) { return Response.error(); }
+  })());
+});

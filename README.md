@@ -1,6 +1,10 @@
-# Mukorob PDF v0.9.0 — Bradz Internal Edition
+# Mukorob PDF v0.9.1 — Bradz Internal Edition
 
 Mukorob PDF is a local-first PDF Reader & Editor for Bradz Trading Enterprises CC (BTE Namibia), designed for controlled internal use.
+
+## v0.9.1 — update recovery
+
+Installed-app updates now wait for the replacement worker, checkpoint edits before reloading, and report retryable failures. Opening the app fetches fresh application files with an offline fallback. Existing browser data is retained. If a previous release keeps showing its update prompt, open the same site at `index.html?mkUpdate=0.9.1` in the browser used for that installation, then reopen the installed app.
 
 ## v0.9.0 — official blue identity and document tools
 
