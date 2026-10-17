@@ -1,3 +1,12 @@
+## 0.10.0 — responsive zoom and PDF copy tools
+
+- Instant CSS zoom previews, anchor preservation, cancellation/coalescing and a two-render limit.
+- Adaptive bitmap budgets, cached text, nearby-page rendering and mixed page dimensions.
+- Percentage input, pointer-centred Ctrl/Cmd-wheel zoom, mobile pinch and hand panning.
+- Combine PDF copies in a visible file order; extract edited pages with validated ranges.
+- Original files, accounts, Recent PDFs, drafts and settings retained.
+- Developed by Bradz Trading Enterprises CC.
+
 ## v0.9.2 — loading and recovery
 
 - Keep repair navigation separate from the offline app shell.

@@ -123,3 +123,24 @@ export async function fillForm(lib, bytes, values, flatten=false) {
   if (flatten) form.flatten();
   return doc.save();
 }
+
+// Copy selected pages in the requested order. Flatten forms first so copied
+// widgets do not become orphaned; the source document stays editable.
+export async function extractPdf(lib, bytes, range='all') {
+  const source=await lib.PDFDocument.load(bytes);
+  const indices=pageIndices(range,source.getPageCount());
+  if(source.getForm().getFields().length)source.getForm().flatten();
+  const result=await lib.PDFDocument.create();
+  for(const page of await result.copyPages(source,indices))result.addPage(page);
+  result.setCreator('Mukorob PDF · Bradz Trading Enterprises CC');return result.save();
+}
+export async function combinePdfs(lib, documents) {
+  if(documents.length<2)throw new Error('Choose at least two PDFs to combine.');
+  const result=await lib.PDFDocument.create();
+  for(const bytes of documents){
+    const source=await lib.PDFDocument.load(bytes);
+    if(source.getForm().getFields().length)source.getForm().flatten();
+    for(const page of await result.copyPages(source,source.getPageIndices()))result.addPage(page);
+  }
+  result.setCreator('Mukorob PDF · Bradz Trading Enterprises CC');return result.save();
+}

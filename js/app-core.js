@@ -71,7 +71,7 @@ function installMobileTouchZoom(){
   const pages=$('#pagesContainer');
   if(!pages||pages.dataset.touchZoomInstalled)return;
   pages.dataset.touchZoomInstalled='1';
-  let pinchStart=0, scaleStart=1, active=false, lastApplied=1, raf=0, pending=1;
+  let pinchStart=0, scaleStart=1, active=false, lastApplied=1, raf=0, pending=1, pendingAnchor=null;
   const distance=(a,b)=>Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);
   pages.addEventListener('touchstart',e=>{
     if(e.touches.length===2){
@@ -85,13 +85,14 @@ function installMobileTouchZoom(){
     const d=distance(e.touches[0],e.touches[1]);
     if(pinchStart<=0)return;
     pending=Math.min(4,Math.max(.3,scaleStart*(d/pinchStart)));
+    pendingAnchor={x:(e.touches[0].clientX+e.touches[1].clientX)/2,y:(e.touches[0].clientY+e.touches[1].clientY)/2};
     if(Math.abs(pending-lastApplied)<0.035)return;
     if(!raf){
-      raf=requestAnimationFrame(()=>{raf=0;lastApplied=pending;setScale(pending);});
+      raf=requestAnimationFrame(()=>{raf=0;lastApplied=pending;setScale(pending,pendingAnchor);});
     }
   },{passive:false});
   const end=()=>{
-    if(active && Math.abs(state.scale-pending)>0.01) setScale(pending);
+    if(active && Math.abs(state.scale-pending)>0.01) setScale(pending,pendingAnchor);
     active=false;pinchStart=0;if(raf){cancelAnimationFrame(raf);raf=0;}
   };
   pages.addEventListener('touchend',end,{passive:true});
@@ -258,12 +259,12 @@ function wireGlobalUI() {
 
   window.addEventListener('keydown', (e) => {
     if (!state.pdfDoc) return;
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    if (e.target.closest('input,textarea,select,[contenteditable=true],[role=dialog],.modal')) return;
     if (e.key === 'Escape') { closeDocument(); return; }
     if (e.key === 'ArrowRight' || e.key === 'PageDown') goToPage(state.currentPage + 1);
     if (e.key === 'ArrowLeft' || e.key === 'PageUp') goToPage(state.currentPage - 1);
-    if (e.key === '+' || e.key === '=') setScale(state.scale * 1.2);
-    if (e.key === '-' || e.key === '_') setScale(state.scale / 1.2);
+    if (e.key === '+' || e.key === '=') {e.preventDefault();setScale(state.scale * 1.2);}
+    if (e.key === '-' || e.key === '_') {e.preventDefault();setScale(state.scale / 1.2);}
     if ((e.ctrlKey || e.metaKey) && e.key === '0') { e.preventDefault(); setScale(1); }
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'p') {
       e.preventDefault();
@@ -319,9 +320,9 @@ async function openFile(file, fileHandle = null) {
     $('#btnSearch').disabled = false;
 
     const first = await doc.getPage(1);
-    state.baseViewport = first.getViewport({ scale: 1 });
+    state.baseViewport = first.getViewport({ scale: 1, rotation:0 });
     state.pageRotations = new Map();
-    for (let i=1;i<=doc.numPages;i++) state.pageRotations.set(i,((await doc.getPage(i)).rotate||0));
+    for(let i=1;i<=doc.numPages;i++){const page=await doc.getPage(i);state.pageRotations.set(i,page.rotate||0);const dims=page.getViewport({scale:1,rotation:0});state.pageDimensions.set(i,{width:dims.width,height:dims.height});}
     if(window.innerWidth<=719)state.scale=Math.max(.3,Math.max(240,$('#viewer').clientWidth-40)/state.baseViewport.width);
 
     await buildPageShells();
@@ -354,6 +355,7 @@ async function restoreDraftSource(bytes,rotations=[]) {
   const first=await doc.getPage(1);state.pageRotations=new Map(rotations);
   state.baseViewport=first.getViewport({scale:1,rotation:0});
   if(window.innerWidth<=719)state.scale=Math.max(.3,Math.max(240,$('#viewer').clientWidth-40)/first.getViewport({scale:1,rotation:state.pageRotations.get(1)??first.rotate}).width);
+  for(let i=1;i<=doc.numPages;i++){const page=await doc.getPage(i),dims=page.getViewport({scale:1,rotation:0});state.pageDimensions.set(i,{width:dims.width,height:dims.height});}
   await buildPageShells();layoutPages();setupObserver();updatePageIndicator();buildThumbnails();
   if(old)try{await old.destroy();}catch(_){}
 }
@@ -361,6 +363,8 @@ async function restoreDraftSource(bytes,rotations=[]) {
 async function closeDocument() {
   await window.MukorobAutosave?.flush();
   state.pageRotations=new Map();
+  clearTimeout(zoomTimer);state.zoomPending=false;
+  state.pageEls.forEach(p=>{p.renderToken=(p.renderToken||0)+1;p.renderTask?.cancel();p.textTask?.cancel();});
   const doc = state.pdfDoc;
   if (state.observer) state.observer.disconnect();
   closeSearch();
@@ -398,6 +402,8 @@ async function closeDocument() {
 }
 
 function resetViewerState() {
+  clearTimeout(zoomTimer);state.zoomPending=false;
+  state.pageEls.forEach(p=>{p.renderTask?.cancel();p.textTask?.cancel();});
   state.pdfDoc = null;
   state.pageEls = [];
   state.annotations = [];
@@ -457,10 +463,33 @@ function layoutPages() {
   $('#zoomLabelMobile').textContent = Math.round(state.scale * 100) + '%';
 }
 
-function setScale(newScale) {
-  state.scale = Math.min(4, Math.max(0.3, newScale));
+let zoomTimer = null;
+function setScale(newScale, anchor = null) {
+  if (!state.pdfDoc || !Number.isFinite(newScale)) return;
+  const scale = Math.min(4, Math.max(0.3, newScale));
+  if (Math.abs(scale-state.scale)<0.0001) return;
+  const viewer=$('#viewer'), vr=viewer.getBoundingClientRect();
+  const x=anchor?.x??vr.left+vr.width/2, y=anchor?.y??vr.top+vr.height/2;
+  const visible=state.pageEls.filter(p=>{const r=p.wrap.getBoundingClientRect();return r.bottom>vr.top&&r.top<vr.bottom;});
+  const target=visible.find(p=>{const r=p.wrap.getBoundingClientRect();return y>=r.top&&y<=r.bottom;})||state.pageEls[state.currentPage-1];
+  const before=target?.wrap.getBoundingClientRect();
+  const fx=before?(x-before.left)/before.width:0, fy=before?(y-before.top)/before.height:0;
+  state.scale=scale;
+  // CSS preview is synchronous. Never wait for a high-resolution bitmap here.
   layoutPages();
+  if(before){const after=target.wrap.getBoundingClientRect();viewer.scrollLeft+=after.left+fx*after.width-x;viewer.scrollTop+=after.top+fy*after.height-y;}
   updateZoomControls();
+  clearTimeout(zoomTimer);
+  state.zoomPending=true;
+  zoomTimer=setTimeout(()=>{state.zoomPending=false;sharpenVisiblePages();},140);
+}
+function sharpenVisiblePages(){
+  if(!state.pdfDoc)return;
+  const vr=$('#viewer').getBoundingClientRect();
+  state.pageEls.map((p,i)=>({p,i,r:p.wrap.getBoundingClientRect()}))
+    .filter(({r})=>r.bottom>vr.top-400&&r.top<vr.bottom+400)
+    .sort((a,b)=>Math.abs(a.i+1-state.currentPage)-Math.abs(b.i+1-state.currentPage))
+    .forEach(({i})=>renderPage(i+1));
 }
 
 function updateZoomControls() {
@@ -471,6 +500,12 @@ function updateZoomControls() {
   $('#pageJump').max = state.numPages || 1;
   $('#zoomLabelTop').textContent = Math.round(state.scale * 100) + '%';
   $('#zoomLabelMobile').textContent = Math.round(state.scale * 100) + '%';
+  if($('#zoomPercent') && document.activeElement!==$('#zoomPercent'))$('#zoomPercent').value=Math.round(state.scale*100);
+  if($('#zoomPercent'))$('#zoomPercent').disabled=!hasDoc;
+  if($('#btnHandTool'))$('#btnHandTool').disabled=!hasDoc;
+  if($('#zoomPercentMobile')&&document.activeElement!==$('#zoomPercentMobile'))$('#zoomPercentMobile').value=Math.round(state.scale*100);
+  if($('#zoomPercentMobile'))$('#zoomPercentMobile').disabled=!hasDoc;
+  if($('#btnHandMobile'))$('#btnHandMobile').disabled=!hasDoc;
   $('#btnPrevPage').disabled = !hasDoc || state.currentPage <= 1;
   $('#btnNextPage').disabled = !hasDoc || state.currentPage >= state.numPages;
 }
@@ -564,7 +599,7 @@ function setupObserver() {
       if (entry.isIntersecting) renderPage(pageNum); else unrenderPage(pageNum);
     });
     syncCurrentPageFromViewport();
-  }, { root: viewer, rootMargin: '1200px 0px 1200px 0px', threshold: [0, 0.5] });
+  }, { root: viewer, rootMargin: '400px 0px 400px 0px', threshold: [0, 0.5] });
   state.pageEls.forEach((p) => state.observer.observe(p.wrap));
   if (state._pageScrollHandler) viewer.removeEventListener('scroll', state._pageScrollHandler);
   let scrollTimer = null;
@@ -632,7 +667,9 @@ async function renderPage(pageNum, force = false) {
 
 function unrenderPage(pageNum) {
   const p = state.pageEls[pageNum - 1];
-  if (!p || !p.rendered) return;
+  if(!p)return;
+  p.renderToken=(p.renderToken||0)+1;p.renderTask?.cancel();p.textTask?.cancel();p.rendering=false;
+  if(!p.rendered)return;
   // keep a buffer around the visible area rendered; free the canvas bitmap
   // beyond that to bound memory on very large documents.
   p.canvas.width = 0;
@@ -2141,55 +2178,70 @@ layoutPages=function(){
   if(!state.baseViewport)return;
   state.pageEls.forEach((p,i)=>{
     const rot=state.pageRotations.get(i+1)||0;
-    const w0=state.baseViewport.width, h0=state.baseViewport.height;
+    const dims=state.pageDimensions.get(i+1)||state.baseViewport;
     const swap=Math.abs(rot)%180===90;
-    const w=(swap?h0:w0)*state.scale, h=(swap?w0:h0)*state.scale;
+    const w=(swap?dims.height:dims.width)*state.scale,h=(swap?dims.width:dims.height)*state.scale;
     p.wrap.style.width=w+'px';p.wrap.style.height=h+'px';
-    if(p.canvas){p.canvas.style.width=w+'px';p.canvas.style.height=h+'px';}
-    if(p.rendered){p.rendered=false;renderPage(i+1,true);}
+    if(p.canvas){p.canvas.style.width='100%';p.canvas.style.height='100%';}
+    if(p.textLayer&&p.renderScale){p.textLayer.style.transformOrigin='0 0';p.textLayer.style.transform=`scale(${state.scale/p.renderScale})`;}
+    if(p.annotLayer)drawAnnotationsForPage(i+1);
   });
   $('#zoomLabelMobile').textContent=Math.round(state.scale*100)+'%';
 };
-const v05BaseRenderPage=renderPage;
-renderPage=async function(pageNum,force=false){
-  const p=state.pageEls[pageNum-1]; if(!p||!state.pdfDoc)return;
-  // Rotation is a forced render. If an observer-triggered render is already
-  // in flight, wait for it rather than silently dropping the rotation render.
-  if(p.rendering && force){
-    const started=performance.now();
-    while(p.rendering && performance.now()-started<5000){
-      await new Promise(resolve=>setTimeout(resolve,16));
-    }
-  }
-  if(p.rendering)return;
-  const rot=((Number(state.pageRotations.get(pageNum))||0)%360+360)%360;
-  const old=state.pageRotations.get(pageNum);
-  // Temporarily expose a page-specific viewport to the v0.4 renderer.
-  const page=await state.pdfDoc.getPage(pageNum);
-  const cssViewport=page.getViewport({scale:state.scale,rotation:rot});
-  const dpr=window.devicePixelRatio||1;
-  // Render above CSS resolution for crisp scanned/image text, but cap the
-  // bitmap at roughly 24 MP so large pages/zoom levels do not exhaust RAM.
-  let outputScale=Math.min(3.5,Math.max(2,dpr*1.5));
-  const cssPixels=cssViewport.width*cssViewport.height;
-  const maxPixels=24_000_000;
-  if(cssPixels*outputScale*outputScale>maxPixels) outputScale=Math.max(1,Math.sqrt(maxPixels/cssPixels));
-  const viewport=page.getViewport({scale:state.scale*outputScale,rotation:rot});
-  p.rendering=true;
-  try{
-    if(!p.canvas){p.canvas=document.createElement('canvas');p.canvas.className='page-canvas';p.wrap.innerHTML='';p.wrap.appendChild(p.canvas);const annot=document.createElement('div');annot.className='annot-layer';p.wrap.appendChild(annot);p.annotLayer=annot;}
-    p.wrap.style.width=cssViewport.width+'px';p.wrap.style.height=cssViewport.height+'px';
-    p.canvas.width=viewport.width;p.canvas.height=viewport.height;p.canvas.style.width=cssViewport.width+'px';p.canvas.style.height=cssViewport.height+'px';
-    const ctx=p.canvas.getContext('2d',{alpha:false});ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
-    await page.render({canvasContext:ctx,viewport,intent:'display'}).promise;
-    p.rendered=true; drawAnnotationsForPage(pageNum);
-    // Rebuild selectable text layer against the same rotated viewport.
-    if(p.textLayer)p.textLayer.remove();
-    const layer=document.createElement('div');layer.className='text-layer';p.wrap.insertBefore(layer,p.annotLayer||null);p.textLayer=layer;
-    layer.style.setProperty('--scale-factor',cssViewport.scale);
-    try{const content=await page.getTextContent({normalizeWhitespace:true});const divs=[];await pdfjsLib.renderTextLayer({textContentSource:content,container:layer,viewport:cssViewport,textDivs:divs,enhanceTextSelection:true}).promise;}catch(_){ }
-    if(!p.annotLayer.dataset.wired){p.annotLayer.dataset.wired='1';attachAnnotPointerHandlers(pageNum,p.annotLayer);}
-  }catch(err){console.error('render error',pageNum,err);}finally{p.rendering=false;}
+// Only two high-resolution pages may render concurrently. Superseded requests
+// are cancelled; detached canvases keep the last complete page visible.
+let activePageRenders=0;
+const pageRenderWaiters=[];
+async function acquirePageRender(){
+  if(activePageRenders>=2)await new Promise(resolve=>pageRenderWaiters.push(resolve));
+  else activePageRenders++;
+}
+function releasePageRender(){const next=pageRenderWaiters.shift();if(next)next();else activePageRenders--;}
+renderPage=function(pageNum,force=false){
+  const p=state.pageEls[pageNum-1],doc=state.pdfDoc;
+  if(!p||!doc)return Promise.resolve();
+  const scale=state.scale,rot=((Number(state.pageRotations.get(pageNum))||0)%360+360)%360;
+  const key=scale+':'+rot;
+  if(!force&&p.rendered&&p.renderKey===key)return Promise.resolve();
+  if(p.rendering&&p.pendingKey===key)return p.renderPromise;
+  if(state.zoomPending&&!force)return Promise.resolve();
+  p.renderTask?.cancel();p.textTask?.cancel();
+  const token=(p.renderToken||0)+1;p.renderToken=token;p.pendingKey=key;p.rendering=true;
+  const valid=()=>p.renderToken===token&&state.pdfDoc===doc&&state.pageEls[pageNum-1]===p;
+  p.renderPromise=(async()=>{
+    await acquirePageRender();
+    try{
+      if(!valid())return;
+      const page=await doc.getPage(pageNum);if(!valid())return;
+      const base=page.getViewport({scale:1,rotation:0});state.pageDimensions.set(pageNum,{width:base.width,height:base.height});
+      const cssViewport=page.getViewport({scale,rotation:rot});
+      // Native device resolution with a strict per-page bitmap budget.
+      const maxPixels=window.innerWidth<720?6_000_000:12_000_000;
+      const outputScale=Math.min(2.5,Math.max(1,window.devicePixelRatio||1),Math.sqrt(maxPixels/(cssViewport.width*cssViewport.height)));
+      const viewport=page.getViewport({scale:scale*outputScale,rotation:rot});
+      const canvas=document.createElement('canvas');canvas.className='page-canvas';
+      canvas.width=Math.ceil(viewport.width);canvas.height=Math.ceil(viewport.height);canvas.style.width='100%';canvas.style.height='100%';
+      p.renderTask=page.render({canvasContext:canvas.getContext('2d',{alpha:false}),viewport,intent:'display'});
+      await p.renderTask.promise;if(!valid())return;
+      const layer=document.createElement('div');layer.className='text-layer';
+      layer.style.width=cssViewport.width+'px';layer.style.height=cssViewport.height+'px';layer.style.setProperty('--scale-factor',cssViewport.scale);
+      try{
+        p.textContent=p.textContent||await page.getTextContent({normalizeWhitespace:true});if(!valid())return;
+        p.textTask=pdfjsLib.renderTextLayer({textContentSource:p.textContent,container:layer,viewport:cssViewport,textDivs:[],enhanceTextSelection:true});
+        await p.textTask.promise;
+      }catch(err){if(err.name!=='RenderingCancelledException'&&valid())console.warn('Text layer unavailable',err);}
+      if(!valid())return;
+      const annot=p.annotLayer||document.createElement('div');annot.className='annot-layer';
+      if(p.canvas){p.canvas.width=0;p.canvas.height=0;}
+      p.wrap.replaceChildren(canvas,layer,annot);p.canvas=canvas;p.textLayer=layer;p.annotLayer=annot;
+      p.renderScale=scale;p.renderKey=key;p.rendered=true;
+      // Layout can have changed while rendering; display at the latest zoom.
+      layoutPages();drawAnnotationsForPage(pageNum);
+      if(!annot.dataset.wired){annot.dataset.wired='1';attachAnnotPointerHandlers(pageNum,annot);}
+    }catch(err){if(valid()&&err.name!=='RenderingCancelledException')console.error('render error',pageNum,err);}
+    finally{if(valid()){p.rendering=false;p.renderTask=null;p.textTask=null;}releasePageRender();}
+  })();
+  return p.renderPromise;
 };
 
 async function rotateCurrentPageAccurate(delta){
@@ -2433,7 +2485,7 @@ window.addEventListener('DOMContentLoaded',()=>{
 /* v0.7 module bridge: expose the stable application surface to ES modules. */
 window.MukorobApp = {
   state, $, $, toast, requirePermission, hasPermission, currentUserId, db: MukorobDB,
-  openFile, closeDocument, restoreDraftSource, renderPage, drawAnnotationsForPage, persistAnnotations,
+  openFile, closeDocument, restoreDraftSource, renderPage, setScale, fitWidth, fitPage, drawAnnotationsForPage, persistAnnotations,
   saveBytesAs, buildWorkingPdfBytes, hasWorkingEdits, writeAudit, loadSettings,
   saveSettings, applySettings, updateZoomControls, buildThumbnails, highlightCurrentThumb,
   getUser, normalizeId, randomToken, hashPassword, makePasswordRecord,

@@ -1,6 +1,18 @@
-# Mukorob PDF v0.9.2 — Bradz Internal Edition
+# Mukorob PDF v0.10.0 — Bradz Internal Edition
 
 Mukorob PDF is a local-first PDF Reader & Editor for Bradz Trading Enterprises CC (BTE Namibia), designed for controlled internal use.
+
+## v0.10.0 — responsive zoom and document navigation
+
+- Zoom resizes the existing bitmap immediately and sharpens nearby pages after a 140 ms pause. Duplicate requests are coalesced, superseded renders are cancelled, and only two page renders run concurrently. Distant pages remain virtualized.
+- Native device-resolution rendering with a 6 MP mobile / 12 MP desktop bitmap budget, cached text content, and a selectable text layer that scales with the preview.
+- Zoom preserves the visible document point where scrolling permits. Mixed page sizes and page rotation retain their own dimensions.
+- Direct 30–400% entry on desktop and mobile, Ctrl/Cmd + mouse wheel anchored at the pointer, keyboard +/− and Ctrl/Cmd+0, and two-finger mobile pinch anchored at the gesture midpoint.
+- Hand tool for dragging enlarged pages with a mouse or pen; touch keeps native one-finger scrolling.
+- Document tools → Combine PDFs: visible file list with move-up/down ordering, saved as a new copy.
+- Document tools → Extract pages: validated ranges, current rotations and annotations included, saved as a new copy. Combine/extract flatten interactive form values in the copy to avoid orphaned form widgets; the source remains editable.
+
+This release improves the reader and existing workflows; it is not complete Adobe Acrobat feature parity. OCR, replacement of existing PDF text/images, Office conversion, secure redaction, certificate-based digital signatures, PDF/A validation, accessibility remediation and cloud collaboration remain separate implementation projects. A drawn signature is a visual annotation, not a certificate signature. No Adobe proprietary implementation is included.
 
 ## v0.9.2 — reliable opening and offline recovery
 

@@ -1,7 +1,7 @@
 {
   "name": "mukorob-pdf",
   "private": true,
-  "version": "0.9.2",
+  "version": "0.10.0",
   "scripts": {
     "test": "node tests/smoke-test.mjs && node tests/document-workflows-test.mjs && node tests/draft-recovery-test.mjs",
     "test:browser": "playwright test"

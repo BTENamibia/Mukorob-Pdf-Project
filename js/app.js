@@ -9,3 +9,5 @@ import './modules/v071-brand-auth.js';
 import './modules/update-manager.js';
 import './modules/supabase-auth.js';
 import './modules/document-tools.js';
+
+import './modules/reader-controls.js';

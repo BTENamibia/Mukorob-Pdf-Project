@@ -1,4 +1,4 @@
-import {decoratePdf, imagesToPdf, formSchema, fillForm, exportWorkingPdf} from './document-engine.mjs';
+import {decoratePdf, imagesToPdf, formSchema, fillForm, exportWorkingPdf, extractPdf, combinePdfs} from './document-engine.mjs';
 const A=window.MukorobApp;
 window.MukorobPdfEngine={exportWorkingPdf};
 let busy=false;
@@ -99,10 +99,43 @@ async function openForms() {
     }),v.body,'btnSaveFilledPdf');
   }catch(e){v.status.textContent=e.message||'Could not read this form.';}
 }
+function openExtract() {
+  if(!canCopy())return;
+  const v=modal('Extract pages to a new PDF');
+  const pages=field(v.body,'Pages to extract (all, 1, 3-5)','text','all');
+  const hint=document.createElement('p');hint.textContent='Rotations and annotations are included. Form values become fixed text in the copy.';v.body.appendChild(hint);
+  button('Save selected pages',()=>run(v,async()=>{
+    if(!canCopy())throw new Error('Document access changed.');
+    const outputName=name(' (selected pages)');
+    const bytes=await extractPdf(PDFLib,await workingBytes(),pages.value);
+    return A.saveBytesAs(bytes,outputName);
+  }),v.body,'btnExtractCopy');
+}
+function openCombine() {
+  if(!A.requirePermission('edit')||!A.requirePermission('download'))return;
+  const v=modal('Combine PDFs');let files=[];
+  const input=field(v.body,'Choose PDFs to combine','file');input.accept='application/pdf';input.multiple=true;
+  const list=document.createElement('ol');v.body.appendChild(list);
+  function draw(){list.replaceChildren();files.forEach((file,i)=>{
+    const li=document.createElement('li');const text=document.createElement('span');text.textContent=file.name+' ';li.appendChild(text);
+    const up=button('Move up',()=>{[files[i-1],files[i]]=[files[i],files[i-1]];draw();},li);up.disabled=i===0;
+    const down=button('Move down',()=>{[files[i+1],files[i]]=[files[i],files[i+1]];draw();},li);down.disabled=i===files.length-1;
+    list.appendChild(li);
+  });}
+  input.addEventListener('change',()=>{files=[...input.files];draw();});
+  const hint=document.createElement('p');hint.textContent='Files are combined in the listed order. Form values become fixed text in the new copy.';v.body.appendChild(hint);
+  button('Save combined PDF',()=>run(v,async()=>{
+    if(!A.requirePermission('edit')||!A.requirePermission('download'))throw new Error('Document access changed.');
+    const documents=[];for(const file of files)documents.push(await file.arrayBuffer());
+    return A.saveBytesAs(await combinePdfs(PDFLib,documents),'Mukorob combined.pdf');
+  }),v.body,'btnCombineCopy');
+}
 function hub() {
   if(!A.requirePermission('edit'))return;
   const v=modal('Document tools');
   button('Create PDF from images',openImages,v.body,'toolImagesToPdf');
+  button('Combine PDFs',openCombine,v.body,'toolCombinePdfs');
+  const extract=button('Extract pages',openExtract,v.body,'toolExtractCopy');extract.disabled=!A.state.pdfDoc;
   const decoration=button('Watermarks & page numbers',openDecoration,v.body,'toolDecoratePdf');decoration.disabled=!A.state.pdfDoc;
   const forms=button('Fill PDF form',()=>openForms(),v.body,'toolFillForm');forms.disabled=!A.state.pdfDoc;
   const credit=document.createElement('p');credit.className='hint';credit.textContent='Developed by Bradz Trading Enterprises CC';v.body.appendChild(credit);

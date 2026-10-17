@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import {createRequire} from 'node:module';
-import {pageIndices,visiblePoint,decoratePdf,imagesToPdf,formSchema,fillForm,exportWorkingPdf} from '../js/modules/document-engine.mjs';
+import {pageIndices,visiblePoint,decoratePdf,imagesToPdf,formSchema,fillForm,exportWorkingPdf,extractPdf,combinePdfs} from '../js/modules/document-engine.mjs';
 const require=createRequire(import.meta.url), lib=require('pdf-lib');
 const doc=await lib.PDFDocument.create();doc.addPage([600,800]);doc.addPage([800,600]).setRotation(lib.degrees(90));
 const form=doc.getForm();const text=form.createTextField('Full name');text.addToPage(doc.getPage(0),{x:30,y:700,width:200,height:24});
@@ -40,3 +40,10 @@ for(const rotation of [0,90,180,270]){
 const manifest=JSON.parse(fs.readFileSync(new URL('../manifest.webmanifest',import.meta.url)));
 for(const icon of manifest.icons){const data=fs.readFileSync(new URL('../'+icon.src,import.meta.url));assert.equal(data.subarray(1,4).toString(),'PNG');assert.equal(icon.sizes,`${data.readUInt32BE(16)}x${data.readUInt32BE(20)}`);}
 console.log('Document workflows: form filling/flattening, images, decorations, all rotation exports and icon sizes PASS');
+
+const extracted=await lib.PDFDocument.load(await extractPdf(lib,filled,'2,1'));
+assert.equal(extracted.getPage(0).getWidth(),800);assert.equal(extracted.getPage(0).getRotation().angle,90);assert.equal(extracted.getForm().getFields().length,0);
+assert.equal((await lib.PDFDocument.load(filled)).getForm().getFields().length,4);
+const combined=await lib.PDFDocument.load(await combinePdfs(lib,[filled,filled]));assert.equal(combined.getPageCount(),4);assert.equal(combined.getForm().getFields().length,0);
+await assert.rejects(()=>combinePdfs(lib,[filled]));await assert.rejects(()=>extractPdf(lib,filled,'3'));
+console.log('Combine/extract: page order, rotations, forms, input validation and unchanged source PASS');
